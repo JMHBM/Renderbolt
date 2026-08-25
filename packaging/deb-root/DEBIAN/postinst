@@ -1,7 +1,0 @@
-#!/bin/sh
-set -e
-chmod 755 /usr/bin/renderbolt /opt/renderbolt/renderbolt || true
-if command -v update-desktop-database >/dev/null 2>&1; then
-  update-desktop-database -q || true
-fi
-exit 0
