@@ -38,13 +38,11 @@ python3 desktop/renderbolt
 
 ## Wiki
 
-The project wiki lives in [`wiki/`](wiki/Home.md):
-
-- [Where we are](wiki/Home.md)
-- [Getting started](wiki/Getting-Started.md)
-- [Studio](wiki/Studio.md)
-- [Visual engine](wiki/Visual-Engine.md)
-- [Roadmap](wiki/Roadmap.md)
+- [Welcome](https://github.com/JMHBM/Renderbolt/wiki/Welcome-to-Renderbolt)
+- [Getting started](https://github.com/JMHBM/Renderbolt/wiki/Getting-Started)
+- [Studio](https://github.com/JMHBM/Renderbolt/wiki/Studio)
+- [Visual engine](https://github.com/JMHBM/Renderbolt/wiki/Visual-Engine)
+- [Roadmap](https://github.com/JMHBM/Renderbolt/wiki/Roadmap)
 
 ## What it does
 
