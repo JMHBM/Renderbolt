@@ -16,7 +16,7 @@ sudo apt install ./renderbolt_1.0.6_all.deb
 
 Packages live in [`public/downloads/`](public/downloads/). Needs Python 3.10+, Tk, Pillow, NumPy, and FFmpeg. On AMD GPUs, install `mesa-va-drivers` for hardware encode.
 
-### Fedora / Silverblue 44
+### Fedora / Silverblue 44 (Coming Soon)
 
 ```bash
 # Workstation
