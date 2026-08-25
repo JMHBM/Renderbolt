@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Renderbolt",
+      "hasCanvas": true,
+      "bodyTextLen": 493,
+      "bodyTextHash": "39aa45ef077efd478fa30647b6c22c3b72a167aac1099b69f6743521216f8a1e",
+      "bodyTextPrefix": "RENDERBOLT Fedora RPM Debian .deb CC BY 4.0 STUDIO AUDIO Demo be",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Renderbolt",
+      "hasCanvas": true,
+      "bodyTextLen": 474,
+      "bodyTextHash": "3f3362c8301ca7b39bb7dba92599e449a42843988091676b6335de9c3c76d41f",
+      "bodyTextPrefix": "RENDERBOLT RPM CC BY 4.0 STUDIO AUDIO Demo beat MP3, WAV, FLAC, ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}
