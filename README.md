@@ -12,15 +12,21 @@ Designed by **JMHBM**. Licensed under [Creative Commons Attribution 4.0 Internat
 
 ### Debian / Ubuntu (current)
 
-Download [`renderbolt_1.0.6_all.deb`](https://github.com/JMHBM/Renderbolt/releases/download/1.0.6/renderbolt_1.0.6_all.deb) from the [v1.0.6 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6), then:
+Download [`renderbolt_1.0.7_all.deb`](https://github.com/JMHBM/Renderbolt/releases/download/1.0.7/renderbolt_1.0.7_all.deb) from [Releases](https://github.com/JMHBM/Renderbolt/releases) (or build it with `python3 scripts/build-deb.py`), then:
 
 ```bash
-sudo apt install ./renderbolt_1.0.6_all.deb
+sudo apt install ./renderbolt_1.0.7_all.deb
 ```
 
 Needs Python 3.10+, Tk, Pillow, NumPy, and FFmpeg. On AMD GPUs, install `mesa-va-drivers` for hardware encode.
 
 Open **Renderbolt** from the app menu, or run `renderbolt`.
+
+Headless render (no window):
+
+```bash
+renderbolt render --audio song.mp3 --cover art.jpg --out out.mp4 --preset "Night Drive"
+```
 
 ### Coming soon
 
@@ -36,16 +42,7 @@ pip install -r desktop/requirements.txt
 python3 desktop/renderbolt
 ```
 
-## Wiki
-
-- [Welcome](https://github.com/JMHBM/Renderbolt/wiki/Welcome-to-Renderbolt)
-- [Getting started](https://github.com/JMHBM/Renderbolt/wiki/Getting-Started)
-- [Studio](https://github.com/JMHBM/Renderbolt/wiki/Studio)
-- [Visual engine](https://github.com/JMHBM/Renderbolt/wiki/Visual-Engine)
-- [Roadmap](https://github.com/JMHBM/Renderbolt/wiki/Roadmap)
-
 ## What it does
-
 
 - Background image from disk, with beat bounce and edge fade
 - Song / artist / album titles (optional)

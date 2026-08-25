@@ -24,7 +24,7 @@ On AMD (tested path: Radeon RX 6600M) export prefers VA-API:
 
 If the VA-API device is missing, it falls back to `libx264` on the CPU. That fallback is deliberate — a laptop without drivers should still finish a video.
 
-NVIDIA NVENC and Intel QSV are on the [Roadmap](Roadmap.md). They are not in 1.0.6.
+NVIDIA NVENC and Intel QSV are on the [Roadmap](Roadmap). They are not in 1.0.6.
 
 ## Why local
 

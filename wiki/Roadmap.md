@@ -1,8 +1,8 @@
 # Roadmap
 
-This is a living list, not a contract. 1.0.6 is Debian. Everything else ships when it is actually tested.
+This is a living list, not a contract. 1.0.7 is Debian. Everything else ships when it is actually tested.
 
-## Now — 1.0.6
+## Now — 1.0.7
 
 - Debian / Ubuntu `.deb`
 - 2D + 3D studio
@@ -10,6 +10,8 @@ This is a living list, not a contract. 1.0.6 is Debian. Everything else ships wh
 - VA-API on AMD, software fallback
 - 16:9 / 9:16 / 1:1 · 720p–4K
 - Beat bounce, placement, rotation, stretch, gradients
+- Starter looks, session memory, PNG frame export
+- Headless CLI (`renderbolt render`)
 
 ## Next — other Linux
 

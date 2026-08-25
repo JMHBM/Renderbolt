@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.7 — 2026-08-25
+
+- Starter looks: Night Drive, Live Session, Vinyl, After Hours, Neon Rain, Broadcast
+- Remembers last folders and the current look in `~/.config/renderbolt/`
+- Save the current frame as PNG (`S`)
+- Headless CLI: `renderbolt render --audio … --out …`
+- AppStream metainfo for software centers
+
 ## 1.0.6 — 2026-08-25
 
 First public release. **Debian / Ubuntu `.deb` is the supported package.**

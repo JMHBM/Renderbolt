@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build renderbolt_1.0.6_all.deb without requiring dpkg-deb.
+"""Build renderbolt_1.0.7_all.deb without requiring dpkg-deb.
 
 dpkg does not mkdir -p while unpacking: every parent directory must be a
 real tar member in data.tar.gz, listed before the files it contains.
@@ -19,7 +19,7 @@ from pathlib import Path
 
 ROOT = Path("/workspace")
 STAGE = ROOT / "packaging" / "deb-root"
-OUT = ROOT / "public" / "downloads" / "renderbolt_1.0.6_all.deb"
+OUT = ROOT / "public" / "downloads" / "renderbolt_1.0.7_all.deb"
 
 # Directories that must exist as tar members (relative to /).
 DATA_DIRS = [
@@ -31,6 +31,7 @@ DATA_DIRS = [
     "usr/bin",
     "usr/share",
     "usr/share/applications",
+    "usr/share/metainfo",
     "usr/share/doc",
     "usr/share/doc/renderbolt",
     "usr/share/icons",
@@ -40,16 +41,16 @@ DATA_DIRS = [
 ]
 
 CONTROL = """Package: renderbolt
-Version: 1.0.6
+Version: 1.0.7
 Section: sound
 Priority: optional
 Architecture: all
 Depends: python3 (>= 3.10), python3-tk, python3-pil, python3-pil.imagetk, python3-numpy, ffmpeg, fonts-dejavu-core
 Recommends: mesa-va-drivers
 Maintainer: JMHBM <jmhbm@users.noreply.github.com>
-Homepage: https://creativecommons.org/licenses/by/4.0/
+Homepage: https://github.com/JMHBM/Renderbolt
 Description: Renderbolt cinematic audio visualizer
- Renderbolt turns a song, cover art, and titles into a 1080p MP4
+ Renderbolt turns a song, cover art, and titles into an MP4
  music visualizer with a ModernGL 3D engine (ribbon, bars, halo, terrain).
  VA-API (h264_vaapi) is used on AMD GPUs when available, with CPU fallback.
  Licensed under Creative Commons Attribution 4.0 International.
@@ -66,10 +67,42 @@ Categories=AudioVideo;Audio;Video;
 StartupNotify=true
 """
 
+METAINFO = """<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.jmhbm.renderbolt</id>
+  <name>Renderbolt</name>
+  <summary>Offline cinematic audio visualizer</summary>
+  <metadata_license>CC-BY-4.0</metadata_license>
+  <project_license>CC-BY-4.0</project_license>
+  <developer_name>JMHBM</developer_name>
+  <url type="homepage">https://github.com/JMHBM/Renderbolt</url>
+  <description>
+    <p>
+      Renderbolt turns a song and a still into a cinematic MP4 on your machine.
+      No upload, no account. 2D and 3D visualizers, beat-reactive cover bounce,
+      VA-API encode on AMD GPUs with CPU fallback.
+    </p>
+  </description>
+  <launchable type="desktop-id">renderbolt.desktop</launchable>
+  <provides>
+    <binary>renderbolt</binary>
+  </provides>
+  <releases>
+    <release version="1.0.7" date="2026-08-25"/>
+  </releases>
+  <categories>
+    <category>AudioVideo</category>
+    <category>Audio</category>
+    <category>Video</category>
+  </categories>
+</component>
+"""
+
 COPYRIGHT = """Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: renderbolt
 Upstream-Contact: JMHBM
-Source: https://creativecommons.org/licenses/by/4.0/
+Source: https://github.com/JMHBM/Renderbolt
+
 
 Files: *
 Copyright: 2026 JMHBM
@@ -234,6 +267,7 @@ def main() -> None:
     write(data / "usr/share/doc/renderbolt/copyright", COPYRIGHT)
     write(data / "usr/share/doc/renderbolt/LICENSE", (ROOT / "LICENSE").read_text())
     write(data / "usr/share/applications/renderbolt.desktop", DESKTOP)
+    write(data / "usr/share/metainfo/com.jmhbm.renderbolt.metainfo.xml", METAINFO)
     draw_icon(data / "usr/share/icons/hicolor/256x256/apps/renderbolt.png")
 
     control_tar = tar_dir(debian, gzip=True)

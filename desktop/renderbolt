@@ -8,6 +8,8 @@ https://creativecommons.org/licenses/by/4.0/
 
 from __future__ import annotations
 
+import argparse
+import json
 import math
 import os
 import shutil
@@ -15,19 +17,76 @@ import subprocess
 import sys
 import tempfile
 import time
-import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
 
 HERE = Path(__file__).resolve().parent
 VENDOR = HERE / "vendor"
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
+
+APP_NAME = "Renderbolt"
+VERSION = "1.0.7"
+AUTHOR = "JMHBM"
+LICENSE = "CC BY 4.0"
+
+HELP_TEXT = f"""{APP_NAME} {VERSION} — cinematic audio visualizer
+Copyright (c) 2026 {AUTHOR}  ·  {LICENSE}
+
+Studio:
+  renderbolt                 Open the studio
+
+Render (no window):
+  renderbolt render --audio song.mp3 --out out.mp4 [options]
+  renderbolt --audio song.mp3 --out out.mp4 [options]
+
+Options:
+  --audio PATH         Input audio (mp3, wav, flac, ogg, m4a)
+  --cover PATH         Background image
+  --out PATH           Output MP4 (required for render)
+  --look PATH          Look JSON (from Save look…)
+  --preset NAME        Starter look: Night Drive, Live Session,
+                       Vinyl, After Hours, Neon Rain, Broadcast
+  --mode 2D|3D
+  --style NAME         Waveform, EQ bars, Circular, Liquid waves
+  --theme NAME         Ice, Ember, Forest, Midnight, Mono, Rose,
+                       Violet, Gold, Cyan, Crimson, Ocean, Sunset
+  --title TEXT
+  --artist TEXT
+  --album TEXT
+  --aspect 16:9|9:16|1:1
+  --res 720p|1080p|4K
+  --fps 24|30|60
+  --version
+  --help
+
+Studio shortcuts:
+  Space play/pause   G generate   R shuffle   S save frame
+  arrows seek        Home restart
+  Ctrl+O audio       Ctrl+I background
+"""
+
+
+def _early_cli() -> None:
+    if len(sys.argv) < 2:
+        return
+    if "--version" in sys.argv and "--out" not in sys.argv:
+        print(f"{APP_NAME} {VERSION} · {AUTHOR} · {LICENSE}")
+        raise SystemExit(0)
+    if "-h" in sys.argv or "--help" in sys.argv:
+        print(HELP_TEXT)
+        raise SystemExit(0)
+
+
+_early_cli()
+
 try:
     import moderngl  # noqa: F401
 except ImportError:
     if VENDOR.is_dir() and str(VENDOR) not in sys.path:
         sys.path.insert(0, str(VENDOR))
+
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
 
 try:
     import numpy as np
@@ -43,10 +102,6 @@ except ImportError as exc:  # pragma: no cover
         "  Debian:  sudo apt install python3-pil python3-pil.imagetk python3-tk"
     ) from exc
 
-APP_NAME = "Renderbolt"
-VERSION = "1.0.6"
-AUTHOR = "JMHBM"
-LICENSE = "CC BY 4.0"
 W, H = 1920, 1080
 FPS = 30
 RESOLUTIONS = {"720p": (1280, 720), "1080p": (1920, 1080), "4K": (3840, 2160)}
@@ -77,16 +132,155 @@ STYLE_CARDS = (
 )
 BOUNCE = {"Soft": 0.45, "Medium": 1.0, "Hard": 1.45}
 
+STARTER_LOOKS: dict[str, dict] = {
+    "Night Drive": {
+        "mode": "3D",
+        "style": "Waveform",
+        "theme": "Midnight",
+        "bounce": "Medium",
+        "tilt": 46,
+        "alpha": 0.72,
+        "place": {"x": 0, "y": -0.18, "rot": 0, "sx": 1.15, "sy": 0.9, "mirror": False},
+        "glow": 0.58,
+        "vignette": 0.68,
+        "grain": 0.14,
+        "pulse_hue": 36,
+        "aspect": "16:9",
+    },
+    "Live Session": {
+        "mode": "2D",
+        "style": "EQ bars",
+        "theme": "Ember",
+        "bounce": "Hard",
+        "place": {"x": 0, "y": 0.22, "rot": 0, "sx": 1.05, "sy": 0.85, "mirror": False},
+        "glow": 0.32,
+        "vignette": 0.4,
+        "grain": 0.08,
+        "title_pos": "Bottom",
+        "aspect": "16:9",
+    },
+    "Vinyl": {
+        "mode": "3D",
+        "style": "Circular",
+        "theme": "Gold",
+        "bounce": "Soft",
+        "tilt": 50,
+        "alpha": 0.8,
+        "place": {"x": 0, "y": 0.05, "rot": 0, "sx": 0.95, "sy": 0.95, "mirror": False},
+        "glow": 0.45,
+        "vignette": 0.72,
+        "grain": 0.22,
+        "aspect": "1:1",
+    },
+    "After Hours": {
+        "mode": "3D",
+        "style": "Liquid waves",
+        "theme": "Violet",
+        "bounce": "Medium",
+        "tilt": 38,
+        "alpha": 0.66,
+        "place": {"x": 0, "y": 0.12, "rot": 0, "sx": 1.2, "sy": 1.05, "mirror": False},
+        "glow": 0.5,
+        "vignette": 0.6,
+        "grain": 0.1,
+        "pulse_hue": 24,
+        "aspect": "16:9",
+    },
+    "Neon Rain": {
+        "mode": "3D",
+        "style": "EQ bars",
+        "theme": "Cyan",
+        "bounce": "Hard",
+        "tilt": 44,
+        "place": {"x": 0, "y": 0.08, "rot": 0, "sx": 1.1, "sy": 1.25, "mirror": False},
+        "glow": 0.62,
+        "vignette": 0.5,
+        "grain": 0.06,
+        "pulse_hue": 80,
+        "aspect": "9:16",
+    },
+    "Broadcast": {
+        "mode": "2D",
+        "style": "Waveform",
+        "theme": "Mono",
+        "bounce": "Soft",
+        "place": {"x": 0, "y": 0.28, "rot": 0, "sx": 1.3, "sy": 0.7, "mirror": False},
+        "glow": 0.18,
+        "vignette": 0.35,
+        "grain": 0.05,
+        "show_progress": True,
+        "aspect": "16:9",
+    },
+}
+
 SHARE = os.environ.get(
     "RENDERBOLT_SHARE",
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "share"),
 )
 DEFAULT_COVER = os.path.join(SHARE, "stage.jpg")
+CONFIG_PATH = Path.home() / ".config" / "renderbolt" / "config.json"
 BG = "#0a0a0b"
 FG = "#f4f0ea"
 MUTED = "#9a958c"
 CARD = "#121214"
 BORDER = "#2a2a30"
+
+
+def default_look() -> dict:
+    ice = THEMES["Ice"]
+    return {
+        "mode": "3D",
+        "style": "Waveform",
+        "theme": "Ice",
+        "base": ice[0],
+        "tip": ice[1],
+        "bounce": "Medium",
+        "tilt": 42.0,
+        "alpha": 0.78,
+        "place": {"x": 0.0, "y": 0.0, "rot": 0.0, "sx": 1.0, "sy": 1.0, "mirror": False},
+        "sens": 1.0,
+        "glow": 0.4,
+        "vignette": 0.55,
+        "grain": 0.1,
+        "title_scale": 1.0,
+        "show_titles": True,
+        "show_progress": True,
+        "aspect": "16:9",
+        "res": "1080p",
+        "fps": "30",
+        "fade_in": 0.6,
+        "fade_out": 1.2,
+        "title_pos": "Bottom",
+        "pulse_hue": 0.0,
+    }
+
+
+def merge_look(*parts: dict) -> dict:
+    look = default_look()
+    place = dict(look["place"])
+    for part in parts:
+        if not part:
+            continue
+        nested = part.get("place") or {}
+        place.update(nested)
+        look.update({k: v for k, v in part.items() if k != "place"})
+    look["place"] = place
+    theme = look.get("theme")
+    if theme in THEMES and not any("base" in p for p in parts if p):
+        look["base"], look["tip"] = THEMES[theme]
+    return look
+
+
+def load_config() -> dict:
+    try:
+        return json.loads(CONFIG_PATH.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_config(data: dict) -> None:
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_PATH.write_text(json.dumps(data, indent=2))
 
 
 def hex_rgb(h: str) -> tuple[int, int, int]:
@@ -572,6 +766,183 @@ def render_frame(
     return img
 
 
+def theme_pair_from_look(look: dict) -> tuple[str, str, str]:
+    theme = look.get("theme") or "Ice"
+    preset = THEMES.get(theme, THEMES["Ice"])
+    base = look.get("base") or preset[0]
+    tip = look.get("tip") or preset[1]
+    return (str(base), str(tip), str(tip))
+
+
+def run_export(
+    audio_path: str,
+    dest: str,
+    cover: Image.Image,
+    look: dict,
+    song: str = "",
+    artist: str = "",
+    album: str = "",
+    logo: Image.Image | None = None,
+    progress=None,
+) -> str:
+    """Encode an MP4. Returns the encoder label used."""
+    if np is None:
+        raise RuntimeError("Install python3-numpy to analyze audio.")
+    if not which("ffmpeg"):
+        raise RuntimeError("Install ffmpeg to decode audio and encode MP4.")
+    look = merge_look(look)
+    progress = progress or (lambda _msg, _pct: None)
+    samples, sr = decode_audio(audio_path)
+    duration = samples.size / sr
+    analyzer = Analyzer(samples, sr)
+    ow, oh = frame_wh(look["aspect"], look["res"])
+    fps = int(look.get("fps") or 30)
+    frames = max(1, int(duration * fps))
+    theme = theme_pair_from_look(look)
+    bounce = BOUNCE.get(look.get("bounce", "Medium"), 1.0)
+    progress("Checking VA-API GPU…", 0)
+    software_v, vaapi_device, acodec = pick_ffmpeg_codecs()
+    engine = None
+    if look.get("mode") == "3D":
+        try:
+            from engine3d import try_create
+        except ImportError:
+            try:
+                from desktop.engine3d import try_create  # type: ignore
+            except ImportError:
+                try_create = None  # type: ignore
+        if try_create is not None:
+            progress(f"Starting 3D engine ({look['res']})…", 0)
+            engine = try_create(ow, oh)
+            if engine is not None:
+                engine.set_cover(cover)
+    attempts: list[tuple[str, list[str]]] = []
+    if vaapi_device:
+        attempts.append(
+            (
+                f"VA-API ({vaapi_device})",
+                build_ffmpeg_cmd(dest, audio_path, software_v, vaapi_device, acodec, ow, oh, fps),
+            )
+        )
+    attempts.append(
+        ("CPU", build_ffmpeg_cmd(dest, audio_path, software_v, None, acodec, ow, oh, fps))
+    )
+    last_err = ""
+    for idx, (label, cmd) in enumerate(attempts):
+        progress(f"Rendering with {label}…", 0)
+        rc, last_err = pipe_encode(
+            cmd,
+            frames,
+            cover,
+            analyzer,
+            duration,
+            theme,
+            bounce,
+            look,
+            song,
+            artist,
+            album,
+            engine,
+            logo,
+            fps,
+            progress,
+        )
+        if rc == 0:
+            return label
+        if idx + 1 < len(attempts):
+            progress("GPU encode failed, falling back to CPU…", 0)
+    detail = last_err.strip() or "ffmpeg failed to encode the video"
+    raise RuntimeError(detail[-800:])
+
+
+def pipe_encode(
+    cmd: list[str],
+    frames: int,
+    cover: Image.Image,
+    analyzer: Analyzer,
+    duration: float,
+    theme: tuple[str, str, str],
+    bounce: float,
+    look: dict,
+    song: str,
+    artist: str,
+    album: str,
+    engine: object | None,
+    logo: Image.Image | None,
+    fps: int,
+    progress,
+) -> tuple[int, str]:
+    err_file = tempfile.NamedTemporaryFile(prefix="renderbolt-ffmpeg-", suffix=".log", delete=False)
+    err_path = err_file.name
+    err_file.close()
+    proc: subprocess.Popen[bytes] | None = None
+    log = ""
+    try:
+        with open(err_path, "wb") as err:
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=err)
+            assert proc.stdin is not None
+            dt = 1 / max(1, fps)
+            zoom_state = [1.12]
+            place = look.get("place") or {}
+            out_size = None if engine is not None else frame_wh(look["aspect"], look["res"])
+            for i in range(frames):
+                t = i * dt
+                frame = render_frame(
+                    cover,
+                    analyzer.at(t, dt, float(look.get("sens", 1))),
+                    t,
+                    duration,
+                    look.get("style", "Waveform"),
+                    theme,
+                    song,
+                    artist,
+                    album,
+                    bounce,
+                    bool(look.get("show_titles", True)),
+                    zoom_state,
+                    engine,
+                    float(look.get("tilt", 42)),
+                    float(look.get("alpha", 0.78)),
+                    out_size,
+                    look.get("mode", "3D"),
+                    place,
+                    bool(look.get("show_progress", True)),
+                    float(look.get("glow", 0.4)),
+                    float(look.get("vignette", 0.55)),
+                    float(look.get("grain", 0.1)),
+                    float(look.get("title_scale", 1)),
+                    logo,
+                    float(look.get("fade_in", 0.6)),
+                    float(look.get("fade_out", 1.2)),
+                    look.get("title_pos", "Bottom"),
+                    float(look.get("pulse_hue", 0)),
+                )
+                proc.stdin.write(frame.tobytes())
+                if i % 10 == 0:
+                    progress(f"Rendering {i}/{frames}", 100 * i / frames)
+            proc.stdin.close()
+            rc = proc.wait()
+    except BrokenPipeError:
+        if proc is not None:
+            proc.wait()
+        rc = proc.returncode if proc is not None and proc.returncode else 1
+    except Exception:
+        if proc is not None and proc.poll() is None:
+            proc.kill()
+            proc.wait()
+        raise
+    finally:
+        try:
+            log = Path(err_path).read_text(errors="replace")
+        except OSError:
+            log = ""
+        try:
+            os.unlink(err_path)
+        except OSError:
+            pass
+    return rc, log
+
+
 class App(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
@@ -597,10 +968,32 @@ class App(tk.Tk):
             self._analyzer = None
             self._duration = 16.0
         self._using_demo = True
+        self.cfg = load_config()
+        self._audio_dir = self.cfg.get("audio_dir") or ""
+        self._image_dir = self.cfg.get("image_dir") or ""
+        self._export_dir = self.cfg.get("export_dir") or ""
         self._build()
+        if self.cfg.get("look"):
+            try:
+                self.apply_look(self.cfg["look"])
+            except Exception:
+                pass
         self._load_cover(self.image_path)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.after(40, self._tick)
+
+    def _persist(self) -> None:
+        try:
+            save_config(
+                {
+                    "audio_dir": self._audio_dir,
+                    "image_dir": self._image_dir,
+                    "export_dir": self._export_dir,
+                    "look": self.dump_look(),
+                }
+            )
+        except OSError:
+            pass
 
     def _on_close(self) -> None:
         self._playing = False
@@ -608,6 +1001,7 @@ class App(tk.Tk):
         if self._preview_job:
             self.after_cancel(self._preview_job)
             self._preview_job = None
+        self._persist()
         self.destroy()
 
     def _build(self) -> None:
@@ -694,6 +1088,25 @@ class App(tk.Tk):
         shuffle_btn = tk.Label(left, text="Shuffle look", bg="#1a1a1e", fg=FG, font=("DejaVu Sans", 9), pady=8, cursor="hand2")
         shuffle_btn.pack(fill="x", pady=(10, 0))
         shuffle_btn.bind("<Button-1>", lambda _e: self.shuffle_look())
+
+        section_label(left, "Starter looks").pack(fill="x", pady=(14, 6))
+        starters = tk.Frame(left, bg=CARD)
+        starters.pack(fill="x")
+        names = list(STARTER_LOOKS)
+        for i, name in enumerate(names):
+            chip = tk.Label(
+                starters,
+                text=name,
+                bg="#1a1a1e",
+                fg=FG,
+                font=("DejaVu Sans", 8),
+                pady=7,
+                cursor="hand2",
+            )
+            chip.grid(row=i // 2, column=i % 2, sticky="nsew", padx=3, pady=3)
+            chip.bind("<Button-1>", lambda _e, n=name: self.apply_starter(n))
+        starters.columnconfigure(0, weight=1)
+        starters.columnconfigure(1, weight=1)
 
         self.adv_open = tk.BooleanVar(value=False)
         adv_btn = tk.Label(left, text="Advanced  ▾", bg=CARD, fg=FG, font=("DejaVu Sans", 10), cursor="hand2", anchor="w")
@@ -819,6 +1232,7 @@ class App(tk.Tk):
             ("Shuffle look", self.shuffle_look),
             ("Save look…", self.save_look),
             ("Load look…", self.load_look),
+            ("Save frame…", self.snapshot),
         ):
             tk.Label(looks, text=text, bg="#1a1a1e", fg=FG, font=("DejaVu Sans", 9), pady=6, cursor="hand2").pack(fill="x", pady=2)
             looks.winfo_children()[-1].bind("<Button-1>", lambda _e, c=cmd: c())
@@ -873,7 +1287,7 @@ class App(tk.Tk):
         self.gen_btn.pack(side="right")
         self.gen_btn.bind("<Button-1>", lambda _e: self.generate())
 
-        self.status = tk.StringVar(value="Space play · G generate · R shuffle · arrows seek")
+        self.status = tk.StringVar(value="Space play · G generate · R shuffle · S frame · arrows seek")
         tk.Label(right, textvariable=self.status, bg=BG, fg=MUTED, font=("DejaVu Sans", 9), anchor="w").pack(fill="x", pady=(10, 0))
 
         style = ttk.Style(self)
@@ -900,6 +1314,9 @@ class App(tk.Tk):
             return "break"
         if e.char in ("r", "R"):
             self.shuffle_look()
+            return "break"
+        if e.char in ("s", "S"):
+            self.snapshot()
             return "break"
         if e.keysym == "Left":
             self.seek_to(self._t0 - 2)
@@ -986,17 +1403,8 @@ class App(tk.Tk):
         self.aspect_var.set(random.choice(["16:9", "16:9", "9:16", "1:1"]))
         self.status.set("Shuffled look")
 
-    def save_look(self) -> None:
-        import json
-        path = filedialog.asksaveasfilename(
-            title="Save look",
-            defaultextension=".json",
-            filetypes=[("Renderbolt look", "*.json")],
-            initialfile="renderbolt-look.json",
-        )
-        if not path:
-            return
-        data = {
+    def dump_look(self) -> dict:
+        return {
             "mode": self.mode_var.get(),
             "style": self.style_var.get(),
             "theme": self.theme_var.get(),
@@ -1021,15 +1429,9 @@ class App(tk.Tk):
             "title_pos": self.title_pos.get(),
             "pulse_hue": self.pulse_hue.get(),
         }
-        Path(path).write_text(json.dumps(data, indent=2))
-        self.status.set(f"Saved look {os.path.basename(path)}")
 
-    def load_look(self) -> None:
-        import json
-        path = filedialog.askopenfilename(title="Load look", filetypes=[("Renderbolt look", "*.json"), ("All", "*.*")])
-        if not path:
-            return
-        data = json.loads(Path(path).read_text())
+    def apply_look(self, data: dict) -> None:
+        data = merge_look(data)
         self.mode_var.set(data.get("mode", "3D"))
         self.style_var.set(data.get("style", "Waveform"))
         if data.get("theme") in THEMES:
@@ -1058,14 +1460,98 @@ class App(tk.Tk):
             self.aspect_var.set(data["aspect"])
         if data.get("res") in RESOLUTIONS:
             self.res_var.set(data["res"])
-        if data.get("fps") in ("24", "30", "60"):
+        if str(data.get("fps")) in ("24", "30", "60"):
             self.fps_var.set(str(data["fps"]))
         self.fade_in.set(float(data.get("fade_in", 0.6)))
         self.fade_out.set(float(data.get("fade_out", 1.2)))
         if data.get("title_pos") in ("Top", "Bottom"):
             self.title_pos.set(data["title_pos"])
         self.pulse_hue.set(float(data.get("pulse_hue", 0)))
+
+    def apply_starter(self, name: str) -> None:
+        look = STARTER_LOOKS.get(name)
+        if not look:
+            return
+        self.apply_look(look)
+        self.status.set(f"Look · {name}")
+
+    def save_look(self) -> None:
+        path = filedialog.asksaveasfilename(
+            title="Save look",
+            defaultextension=".json",
+            filetypes=[("Renderbolt look", "*.json")],
+            initialfile="renderbolt-look.json",
+        )
+        if not path:
+            return
+        Path(path).write_text(json.dumps(self.dump_look(), indent=2))
+        self.status.set(f"Saved look {os.path.basename(path)}")
+
+    def load_look(self) -> None:
+        path = filedialog.askopenfilename(title="Load look", filetypes=[("Renderbolt look", "*.json"), ("All", "*.*")])
+        if not path:
+            return
+        self.apply_look(json.loads(Path(path).read_text()))
         self.status.set(f"Loaded {os.path.basename(path)}")
+
+    def snapshot(self) -> None:
+        path = filedialog.asksaveasfilename(
+            title="Save frame",
+            defaultextension=".png",
+            filetypes=[("PNG image", "*.png")],
+            initialfile=f"{self.song.get() or 'renderbolt'}-frame.png",
+            initialdir=self._export_dir or None,
+        )
+        if not path:
+            return
+        try:
+            self._render_preview()
+            frame = self._current_frame(export=True)
+            frame.save(path)
+            self._export_dir = str(Path(path).parent)
+            self.status.set(f"Saved frame {os.path.basename(path)}")
+        except Exception as exc:
+            messagebox.showerror(APP_NAME, str(exc))
+
+    def _current_frame(self, export: bool = False) -> Image.Image:
+        if self._analyzer is None:
+            raise RuntimeError("No audio to frame.")
+        g = self._grade()
+        dt = 1 / max(1, int(self.fps_var.get() or 30))
+        analysis = self._analyzer.at(self._t0, dt, float(self.sens_var.get()))
+        theme = (*self._theme_pair(), self._theme_pair()[1])
+        size = frame_wh(self.aspect_var.get(), self.res_var.get()) if export else self._preview_wh()
+        cover = self.cover or Image.new("RGB", size, (12, 12, 16))
+        return render_frame(
+            cover,
+            analysis,
+            self._t0,
+            self._duration,
+            self.style_var.get(),
+            theme,
+            self.song.get(),
+            self.artist.get(),
+            self.album.get(),
+            BOUNCE.get(self.bounce_var.get(), 1.0),
+            self.show_titles.get(),
+            [1.12],
+            None,
+            float(self.tilt_var.get()),
+            float(self.alpha_var.get()),
+            size,
+            self.mode_var.get(),
+            self._place(),
+            self.show_progress.get(),
+            g["glow"],
+            g["vignette"],
+            g["grain"],
+            g["title_scale"],
+            self.logo_im,
+            g["fade_in"],
+            g["fade_out"],
+            g["title_pos"],
+            g["pulse_hue"],
+        )
 
     def toggle_play(self) -> None:
         if self._playing:
@@ -1190,9 +1676,11 @@ class App(tk.Tk):
         path = filedialog.askopenfilename(
             title="Audio file",
             filetypes=[("Audio", "*.mp3 *.wav *.flac *.ogg *.m4a *.aac"), ("All", "*.*")],
+            initialdir=self._audio_dir or None,
         )
         if not path:
             return
+        self._audio_dir = str(Path(path).parent)
         self._load_audio(path)
 
     def _load_audio(self, path: str) -> None:
@@ -1215,9 +1703,11 @@ class App(tk.Tk):
         path = filedialog.askopenfilename(
             title="Background image",
             filetypes=[("Images", "*.jpg *.jpeg *.png *.webp"), ("All", "*.*")],
+            initialdir=self._image_dir or None,
         )
         if not path:
             return
+        self._image_dir = str(Path(path).parent)
         self.image_path = path
         self.image_var.set(os.path.basename(path))
         self._load_cover(path)
@@ -1234,103 +1724,46 @@ class App(tk.Tk):
         if not self.audio_path:
             messagebox.showinfo(APP_NAME, "Choose an audio file first.")
             return
-        if np is None:
-            messagebox.showerror(APP_NAME, "Install python3-numpy to analyze audio.")
-            return
-        if not which("ffmpeg"):
-            messagebox.showerror(APP_NAME, "Install ffmpeg to decode audio and encode MP4.")
-            return
         dest = filedialog.asksaveasfilename(
             title="Save MP4",
             defaultextension=".mp4",
             filetypes=[("MP4 video", "*.mp4")],
             initialfile=f"{self.song.get() or 'renderbolt'}.mp4",
+            initialdir=self._export_dir or None,
         )
         if not dest:
             return
+        self._export_dir = str(Path(dest).parent)
         was_playing = self._playing
         self._playing = False
         self._stop_audio()
         if self._preview_job:
             self.after_cancel(self._preview_job)
             self._preview_job = None
+
+        def progress(msg: str, pct: float) -> None:
+            self.status.set(msg)
+            if pct:
+                self.pbar["value"] = pct
+            self.update_idletasks()
+
         try:
-            self.status.set("Decoding audio…")
-            self.update_idletasks()
-            samples, sr = decode_audio(self.audio_path)
-            duration = samples.size / sr
-            analyzer = Analyzer(samples, sr)
             cover = self.cover or Image.new("RGB", (W, H), (12, 12, 16))
-            ow, oh = frame_wh(self.aspect_var.get(), self.res_var.get())
-            fps = int(self.fps_var.get() or 30)
-            frames = max(1, int(duration * fps))
-            theme = self._theme_pair()
-            bounce = BOUNCE[self.bounce_var.get()]
-            self.status.set("Checking VA-API GPU…")
-            self.update_idletasks()
-            software_v, vaapi_device, acodec = pick_ffmpeg_codecs()
-            engine = None
-            try:
-                from engine3d import try_create
-            except ImportError:
-                try:
-                    from desktop.engine3d import try_create  # type: ignore
-                except ImportError:
-                    try_create = None  # type: ignore
-            if try_create is not None and self.mode_var.get() == "3D":
-                self.status.set(f"Starting 3D engine ({self.res_var.get()})…")
-                self.update_idletasks()
-                engine = try_create(ow, oh)
-                if engine is not None:
-                    engine.set_cover(cover)
-            tilt = float(self.tilt_var.get())
-            vis_alpha = float(self.alpha_var.get())
-            attempts: list[tuple[str, list[str]]] = []
-            if vaapi_device:
-                attempts.append(
-                    (
-                        f"VA-API ({vaapi_device})",
-                        build_ffmpeg_cmd(dest, self.audio_path, software_v, vaapi_device, acodec, ow, oh, fps),
-                    )
-                )
-            attempts.append(
-                (
-                    "CPU",
-                    build_ffmpeg_cmd(dest, self.audio_path, software_v, None, acodec, ow, oh, fps),
-                )
+            label = run_export(
+                self.audio_path,
+                dest,
+                cover,
+                self.dump_look(),
+                self.song.get(),
+                self.artist.get(),
+                self.album.get(),
+                self.logo_im,
+                progress,
             )
-            last_err = ""
-            ok = False
-            for idx, (label, cmd) in enumerate(attempts):
-                zoom_state = [1.12]
-                self.status.set(f"Rendering with {label}…")
-                self.update_idletasks()
-                rc, last_err = self._pipe_encode(
-                    cmd,
-                    frames,
-                    cover,
-                    analyzer,
-                    duration,
-                    theme,
-                    bounce,
-                    zoom_state,
-                    engine,
-                    tilt,
-                    vis_alpha,
-                )
-                if rc == 0:
-                    ok = True
-                    encoder_label = label
-                    break
-                if idx + 1 < len(attempts):
-                    self.status.set("GPU encode failed, falling back to CPU…")
-                    self.update_idletasks()
-            if not ok:
-                detail = last_err.strip() or "ffmpeg failed to encode the video"
-                raise RuntimeError(detail[-800:])
             self.pbar["value"] = 100
-            self.status.set(f"Saved {dest} · {encoder_label}")
-            messagebox.showinfo(APP_NAME, f"Saved {dest}\nEncoder: {encoder_label}")
+            self.status.set(f"Saved {dest} · {label}")
+            self._persist()
+            messagebox.showinfo(APP_NAME, f"Saved {dest}\nEncoder: {label}")
         except Exception as exc:
             messagebox.showerror(APP_NAME, str(exc))
             self.status.set("Generate failed")
@@ -1341,114 +1774,93 @@ class App(tk.Tk):
                 pass
             self.after(40, self._tick)
 
-    def _pipe_encode(
-        self,
-        cmd: list[str],
-        frames: int,
-        cover: Image.Image,
-        analyzer: Analyzer,
-        duration: float,
-        theme: tuple[str, str, str],
-        bounce: float,
-        zoom_state: list[float],
-        engine: object | None = None,
-        tilt: float = 42.0,
-        vis_alpha: float = 0.72,
-    ) -> tuple[int, str]:
-        err_file = tempfile.NamedTemporaryFile(
-            prefix="renderbolt-ffmpeg-", suffix=".log", delete=False
-        )
-        err_path = err_file.name
-        err_file.close()
-        log = ""
-        proc: subprocess.Popen[bytes] | None = None
-        try:
-            with open(err_path, "wb") as err:
-                proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=err)
-                assert proc.stdin is not None
-                dt = 1 / max(1, int(self.fps_var.get() or 30))
-                g = self._grade()
-                sens = float(self.sens_var.get())
-                out_size = None if engine is not None else frame_wh(self.aspect_var.get(), self.res_var.get())
-                for i in range(frames):
-                    t = i * dt
-                    frame = render_frame(
-                        cover,
-                        analyzer.at(t, dt, sens),
-                        t,
-                        duration,
-                        self.style_var.get(),
-                        theme,
-                        self.song.get(),
-                        self.artist.get(),
-                        self.album.get(),
-                        bounce,
-                        self.show_titles.get(),
-                        zoom_state,
-                        engine,
-                        tilt,
-                        vis_alpha,
-                        out_size,
-                        self.mode_var.get(),
-                        self._place(),
-                        self.show_progress.get(),
-                        g["glow"],
-                        g["vignette"],
-                        g["grain"],
-                        g["title_scale"],
-                        self.logo_im,
-                        g["fade_in"],
-                        g["fade_out"],
-                        g["title_pos"],
-                        g["pulse_hue"],
-                    )
-                    proc.stdin.write(frame.tobytes())
-                    if i % 10 == 0:
-                        self.pbar["value"] = 100 * i / frames
-                        self.status.set(f"Rendering {i}/{frames}")
-                        self.update_idletasks()
-                proc.stdin.close()
-                rc = proc.wait()
-        except BrokenPipeError:
-            if proc is not None:
-                proc.wait()
-            rc = proc.returncode if proc is not None and proc.returncode else 1
-        except Exception:
-            if proc is not None and proc.poll() is None:
-                proc.kill()
-                proc.wait()
-            raise
-        finally:
-            try:
-                log = Path(err_path).read_text(errors="replace")
-            except OSError:
-                log = ""
-            try:
-                os.unlink(err_path)
-            except OSError:
-                pass
-        return rc, log
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(add_help=False, prog="renderbolt")
+    p.add_argument("command", nargs="?", default="")
+    p.add_argument("--audio")
+    p.add_argument("--cover")
+    p.add_argument("--out")
+    p.add_argument("--look")
+    p.add_argument("--preset")
+    p.add_argument("--mode")
+    p.add_argument("--style")
+    p.add_argument("--theme")
+    p.add_argument("--title", default="")
+    p.add_argument("--artist", default="")
+    p.add_argument("--album", default="")
+    p.add_argument("--aspect")
+    p.add_argument("--res")
+    p.add_argument("--fps")
+    p.add_argument("--version", action="store_true")
+    p.add_argument("-h", "--help", action="store_true")
+    return p.parse_args(argv)
+
+
+def cli_render(args: argparse.Namespace) -> int:
+    if not args.audio or not args.out:
+        print("render needs --audio and --out", file=sys.stderr)
+        return 2
+    look = default_look()
+    if args.preset:
+        key = next((k for k in STARTER_LOOKS if k.lower() == args.preset.lower()), None)
+        if not key:
+            print(f"unknown preset {args.preset!r}", file=sys.stderr)
+            print("presets:", ", ".join(STARTER_LOOKS), file=sys.stderr)
+            return 2
+        look = merge_look(look, STARTER_LOOKS[key])
+    if args.look:
+        look = merge_look(look, json.loads(Path(args.look).read_text()))
+    overrides = {}
+    if args.mode:
+        overrides["mode"] = args.mode
+    if args.style:
+        overrides["style"] = args.style
+    if args.theme:
+        overrides["theme"] = args.theme
+        if args.theme in THEMES:
+            overrides["base"], overrides["tip"] = THEMES[args.theme]
+    if args.aspect:
+        overrides["aspect"] = args.aspect
+    if args.res:
+        overrides["res"] = args.res
+    if args.fps:
+        overrides["fps"] = str(args.fps)
+    look = merge_look(look, overrides)
+    cover_path = args.cover or (DEFAULT_COVER if os.path.isfile(DEFAULT_COVER) else None)
+    cover = Image.open(cover_path).convert("RGB") if cover_path else Image.new("RGB", (W, H), (12, 12, 16))
+
+    def progress(msg: str, pct: float) -> None:
+        if pct:
+            print(f"{msg}  {pct:5.1f}%", flush=True)
+        else:
+            print(msg, flush=True)
+
+    label = run_export(
+        args.audio,
+        args.out,
+        cover,
+        look,
+        args.title,
+        args.artist,
+        args.album,
+        None,
+        progress,
+    )
+    print(f"saved {args.out} · {label}")
+    return 0
 
 
 def main() -> None:
-    if "--version" in sys.argv:
+    args = parse_args()
+    if args.help:
+        print(HELP_TEXT)
+        return
+    if args.version and not args.out:
         print(f"{APP_NAME} {VERSION} · {AUTHOR} · {LICENSE}")
         return
-    if "--help" in sys.argv or "-h" in sys.argv:
-        print(
-            f"{APP_NAME} {VERSION} — cinematic audio visualizer\n"
-            f"Copyright (c) 2026 {AUTHOR}  ·  {LICENSE}\n\n"
-            "Launch with no arguments to open the studio.\n\n"
-            "Shortcuts:\n"
-            "  Space          Play / pause preview\n"
-            "  G              Generate MP4\n"
-            "  R              Shuffle look\n"
-            "  Left / Right   Seek 2 seconds\n"
-            "  Home           Restart\n"
-            "  Ctrl+O         Open audio\n"
-            "  Ctrl+I         Open background\n"
-        )
-        return
+    if args.command == "render" or args.out:
+        raise SystemExit(cli_render(args))
     app = App()
     app.mainloop()
 

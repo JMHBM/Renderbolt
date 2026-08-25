@@ -2,6 +2,14 @@
 
 The studio is a single window: controls on the left, live preview on the right, transport along the bottom.
 
+## Starter looks
+
+Six looks ship in the left column. Click one to load a full setup (mode, style, color, placement, aspect).
+
+Night Drive · Live Session · Vinyl · After Hours · Neon Rain · Broadcast
+
+Shuffle still randomizes. **S** saves the current frame as a PNG. The last look and file folders are remembered in `~/.config/renderbolt/`.
+
 ## Modes and styles
 
 Toggle **2D** or **3D**, then pick a look:
@@ -58,5 +66,6 @@ The background still **bounces** on the beat, with the edges fading as it moves 
 | Home | Restart |
 | Ctrl+O | Open audio |
 | Ctrl+I | Open background |
+| S | Save current frame (PNG) |
 
 Looks can be saved and reloaded. Shuffle is the fastest way to find a starting point you did not know you wanted.

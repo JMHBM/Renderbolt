@@ -33,7 +33,7 @@ import { THEMES } from "@/lib/visualizer/themes";
 
 const DEFAULT_COVER = "/samples/stage.jpg";
 const RPM_HREF = "/downloads/renderbolt-1.0.6-1.fc44.noarch.rpm";
-const DEB_HREF = "/downloads/renderbolt_1.0.6_all.deb";
+const DEB_HREF = "/downloads/renderbolt_1.0.7_all.deb";
 
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {

@@ -1,14 +1,14 @@
 # Getting Started
 
-Renderbolt 1.0.6 is a Linux desktop app. The supported package is Debian / Ubuntu.
+Renderbolt 1.0.7 is a Linux desktop app. The supported package is Debian / Ubuntu.
 
 ## Install (Debian / Ubuntu)
 
-1. Download [`renderbolt_1.0.6_all.deb`](https://github.com/JMHBM/Renderbolt/releases/download/1.0.6/renderbolt_1.0.6_all.deb) from the [v1.0.6 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6).
+1. Download [`renderbolt_1.0.7_all.deb`](https://github.com/JMHBM/Renderbolt/releases/download/1.0.7/renderbolt_1.0.7_all.deb) from the [v1.0.7 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.7).
 2. Install it:
 
 ```bash
-sudo apt install ./renderbolt_1.0.6_all.deb
+sudo apt install ./renderbolt_1.0.7_all.deb
 ```
 
 3. Open **Renderbolt** from the app menu, or run `renderbolt`.
@@ -43,4 +43,15 @@ python3 desktop/renderbolt
 
 The live preview is a working sketch of the final frame. Export writes a real MP4 through FFmpeg.
 
-Windows, macOS, Fedora, and other distros are not supported yet. See [Roadmap](Roadmap.md).
+Windows, macOS, Fedora, and other distros are not supported yet. See [Roadmap](Roadmap).
+
+
+## Headless render
+
+No window. Good for scripts and folders of tracks.
+
+```bash
+renderbolt render --audio song.mp3 --cover art.jpg --out out.mp4 --preset "Night Drive"
+```
+
+`--look` takes a JSON file from **Save look…** in the studio. `--preset` is one of: Night Drive, Live Session, Vinyl, After Hours, Neon Rain, Broadcast.
