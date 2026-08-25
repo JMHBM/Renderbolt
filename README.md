@@ -36,7 +36,18 @@ pip install -r desktop/requirements.txt
 python3 desktop/renderbolt
 ```
 
+## Wiki
+
+The project wiki lives in [`wiki/`](wiki/Home.md):
+
+- [Where we are](wiki/Home.md)
+- [Getting started](wiki/Getting-Started.md)
+- [Studio](wiki/Studio.md)
+- [Visual engine](wiki/Visual-Engine.md)
+- [Roadmap](wiki/Roadmap.md)
+
 ## What it does
+
 
 - Background image from disk, with beat bounce and edge fade
 - Song / artist / album titles (optional)
