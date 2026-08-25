@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Renderbolt
+Comment=Cinematic audio visualizer
+Exec=/usr/bin/renderbolt
+Icon=renderbolt
+Terminal=false
+Categories=AudioVideo;Audio;Video;
+StartupNotify=true

@@ -1,0 +1,3 @@
+#!/bin/sh
+export RENDERBOLT_SHARE=/opt/renderbolt/share
+exec python3 /opt/renderbolt/renderbolt "$@"
