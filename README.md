@@ -1,39 +1,37 @@
 # Renderbolt
 
-Cinematic audio visualizer for Linux. Drop in a song and a still, pick a look, and export an MP4.
+Cinematic audio visualizer. Drop in a song and a still, pick a look, and export an MP4.
 
-Designed by **JMHBM**. Licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
+Designed by **JMHBM**. Licensed under [Creative Commons Attribution 4.0 International](LICENSE).
+
+**Debian / Ubuntu is available now.** Windows, macOS, Fedora, and other Linux distros are coming soon.
 
 ![Renderbolt studio](docs/studio.png)
 
 ## Install
 
-### Debian / Ubuntu
+### Debian / Ubuntu (current)
+
+Download [`renderbolt_1.0.6_all.deb`](https://github.com/JMHBM/Renderbolt/releases/download/1.0.6/renderbolt_1.0.6_all.deb) from the [v1.0.6 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6), then:
 
 ```bash
 sudo apt install ./renderbolt_1.0.6_all.deb
 ```
 
-Packages live in [`public/downloads/`](public/downloads/). Needs Python 3.10+, Tk, Pillow, NumPy, and FFmpeg. On AMD GPUs, install `mesa-va-drivers` for hardware encode.
+Needs Python 3.10+, Tk, Pillow, NumPy, and FFmpeg. On AMD GPUs, install `mesa-va-drivers` for hardware encode.
 
-### Fedora / Silverblue 44 (Coming Soon)
+Open **Renderbolt** from the app menu, or run `renderbolt`.
 
-```bash
-# Workstation
-sudo dnf install ./renderbolt-1.0.6-1.fc44.noarch.rpm
+### Coming soon
 
-# Silverblue
-rpm-ostree install ./renderbolt-1.0.6-1.fc44.noarch.rpm
-systemctl reboot
-```
+- Windows
+- macOS
+- Fedora / other Linux distros
 
-Then open **Renderbolt** from the app menu, or run `renderbolt`.
-
-### From source
+### From source (Linux)
 
 ```bash
 sudo apt install python3-tk python3-pil python3-pil.imagetk python3-numpy ffmpeg
-# Fedora: python3-tkinter python3-pillow python3-pillow-tk python3-numpy ffmpeg
 pip install -r desktop/requirements.txt
 python3 desktop/renderbolt
 ```
@@ -59,27 +57,6 @@ python3 desktop/renderbolt
 | Home | Restart |
 | Ctrl+O | Open audio |
 | Ctrl+I | Open background |
-
-## Build packages
-
-```bash
-python3 scripts/build-deb.py
-python3 scripts/build-rpm.py
-```
-
-Outputs:
-
-- `public/downloads/renderbolt_1.0.6_all.deb`
-- `public/downloads/renderbolt-1.0.6-1.fc44.noarch.rpm`
-
-## Browser studio
-
-`src/` is an in-browser preview of the same studio (Web Audio + canvas). The installable Linux app in `desktop/` is the product.
-
-```bash
-npm install
-npm run dev
-```
 
 ## License
 

@@ -2,15 +2,15 @@
 
 ## 1.0.6 — 2026-08-25
 
-Release candidate for public distribution.
+First public release. **Debian / Ubuntu `.deb` is the supported package.**
 
 - 16:9, 9:16, and 1:1 output formats
 - Fade in / fade out, pulse hue, glow, vignette, grain
 - Shuffle look, save / load looks, watermark logo
 - Export 720p / 1080p / 4K at 24 / 30 / 60 fps
 - Keyboard shortcuts and click-to-seek
-- Fedora RPM rebuilt with the 3D engine and VA-API path
-- Debian package directory layout that `dpkg` unpacks cleanly
+- VA-API H.264 on AMD GPUs, with CPU fallback
+- Windows, macOS, Fedora, and other distros: coming soon
 
 ## 1.0.5
 
