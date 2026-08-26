@@ -5,7 +5,7 @@ Cinematic audio visualizer. Drop in a song and a still, pick a look, and export 
 Designed by **JMHBM**. [CC BY 4.0](LICENSE).
 
 **Public release: [1.0.6](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6)** · Debian / Ubuntu `.deb`  
-`main` is 1.0.7 in progress. Windows, macOS, Fedora, and other distros coming soon.
+`main` is 1.0.7 in progress. Test target is Debian-family (Zorin OS / Ubuntu). Windows after the `.deb` is solid. RPM last. macOS in a VM.
 
 [![check](https://github.com/JMHBM/Renderbolt/actions/workflows/check.yml/badge.svg)](https://github.com/JMHBM/Renderbolt/actions/workflows/check.yml)
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](LICENSE)
@@ -16,6 +16,8 @@ Designed by **JMHBM**. [CC BY 4.0](LICENSE).
 
 ## Install (1.0.6)
 
+Debian, Ubuntu, and Zorin OS (apt):
+
 ```bash
 sudo apt install ./renderbolt_1.0.6_all.deb
 ```
@@ -23,6 +25,13 @@ sudo apt install ./renderbolt_1.0.6_all.deb
 Get the file from the [v1.0.6 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6). Needs Python 3.10+, Tk, Pillow, NumPy, and FFmpeg. On AMD GPUs, install `mesa-va-drivers`.
 
 Open **Renderbolt** from the app menu, or run `renderbolt`.
+
+### Coming soon (in this order)
+
+1. Windows 11 (after the `.deb` is signed off)
+2. macOS (VM — no Mac on the desk)
+3. Fedora / RPM / other distros last
+
 
 ## From source (`main` / 1.0.7)
 

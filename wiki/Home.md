@@ -4,7 +4,7 @@ Renderbolt is an offline music visualizer. You bring a song and a still. It rend
 
 **Where we are:** the GitHub Release is **1.0.6** (Debian / Ubuntu `.deb`). **1.0.7** is on `main` and is not on Releases yet.
 
-**Where we are going:** Fedora and other Linux distros, then Windows, then macOS. Same studio, same engine, native packages.
+**Where we are going:** lock the Debian/Zorin `.deb`, then Windows 11, then macOS in a VM. RPM last.
 
 ![Renderbolt studio](https://raw.githubusercontent.com/JMHBM/Renderbolt/main/docs/studio.png)
 
@@ -22,6 +22,7 @@ Renderbolt is an offline music visualizer. You bring a song and a still. It rend
 - [Studio](Studio)
 - [Looks](Looks) — styles, colors, placement, shortcuts
 - [Visual Engine](Visual-Engine) — 2D / 3D, VA-API, FFmpeg
-- [Roadmap](Roadmap) — Fedora, Windows, macOS, and what comes after
+- [Roadmap](Roadmap)
+- [Testing](Testing) — Fedora, Windows, macOS, and what comes after
 
 The README is the storefront. This wiki is the workshop.

@@ -1,10 +1,10 @@
 # Getting Started
 
-Renderbolt 1.0.6 is the Linux desktop app on GitHub Releases. The supported package is Debian / Ubuntu.
+Renderbolt 1.0.6 is the Linux desktop app on GitHub Releases. The supported package is Debian-family **apt**: Debian, Ubuntu, and Zorin OS 18.
 
-## Install (Debian / Ubuntu)
+## Install (Debian / Ubuntu / Zorin OS)
 
-1. Download [`renderbolt_1.0.6_all.deb`](https://github.com/JMHBM/Renderbolt/releases/download/1.0.6/renderbolt_1.0.6_all.deb) from the [v1.0.7 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6).
+1. Download [`renderbolt_1.0.6_all.deb`](https://github.com/JMHBM/Renderbolt/releases/download/1.0.6/renderbolt_1.0.6_all.deb) from the [v1.0.6 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6).
 2. Install it:
 
 ```bash
