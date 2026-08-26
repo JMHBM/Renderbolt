@@ -1,0 +1,36 @@
+name: Bug
+description: Something in the studio or the .deb is wrong
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: The supported install is the 1.0.6 `.deb` on Releases. If you are running from `main`, say so.
+  - type: dropdown
+    id: source
+    attributes:
+      label: How did you run it?
+      options:
+        - Debian package 1.0.6
+        - From source (main / 1.0.7)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Distro
+      placeholder: Ubuntu 24.04, Debian 12, …
+  - type: textarea
+    id: log
+    attributes:
+      label: Logs
+      description: FFmpeg output, terminal text, anything useful.
+      render: shell

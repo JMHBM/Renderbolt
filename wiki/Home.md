@@ -2,7 +2,7 @@
 
 Renderbolt is an offline music visualizer. You bring a song and a still. It renders a cinematic MP4 on your machine — no upload, no account, no watermark unless you want one.
 
-**Where we are:** version **1.0.7** ships today as a Debian / Ubuntu `.deb`. That package is tested and is the only supported install.
+**Where we are:** the GitHub Release is **1.0.6** (Debian / Ubuntu `.deb`). **1.0.7** is on `main` and is not on Releases yet.
 
 **Where we are going:** Fedora and other Linux distros, then Windows, then macOS. Same studio, same engine, native packages.
 
@@ -10,7 +10,7 @@ Renderbolt is an offline music visualizer. You bring a song and a still. It rend
 
 | | |
 |---|---|
-| **Now** | [Debian / Ubuntu 1.0.7](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.7) |
+| **Now** | [Debian / Ubuntu 1.0.7](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6) |
 | **Designed by** | JMHBM |
 | **License** | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 

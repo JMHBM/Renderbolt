@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Wiki
+    url: https://github.com/JMHBM/Renderbolt/wiki
+    about: Install, studio, engine, and roadmap
+  - name: Current release (1.0.6)
+    url: https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6
+    about: The Debian package that is actually on Releases

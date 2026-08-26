@@ -18,4 +18,4 @@ Everything else is coming: Fedora once it survives JMHBM’s Silverblue box, the
 | [Visual Engine](Visual-Engine) | ModernGL → FFmpeg, VA-API, why local |
 | [Roadmap](Roadmap) | Fedora, Windows, macOS, and what we refuse to do |
 
-Download **[1.0.7](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.7)**. Designed by **JMHBM**. Licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+Download **[1.0.7](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6)**. Designed by **JMHBM**. Licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

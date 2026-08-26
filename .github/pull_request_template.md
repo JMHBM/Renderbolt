@@ -1,0 +1,3 @@
+- [ ] I did not bump the public release (still 1.0.6) or retarget README download links
+- [ ] `python3 -m py_compile desktop/renderbolt desktop/engine3d.py desktop/preview3d.py desktop/studio_ui.py`
+- [ ] If I touched packaging, parent directories are still tar members in the `.deb`

@@ -4,11 +4,11 @@ Renderbolt 1.0.7 is a Linux desktop app. The supported package is Debian / Ubunt
 
 ## Install (Debian / Ubuntu)
 
-1. Download [`renderbolt_1.0.7_all.deb`](https://github.com/JMHBM/Renderbolt/releases/download/1.0.7/renderbolt_1.0.7_all.deb) from the [v1.0.7 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.7).
+1. Download [`renderbolt_1.0.6_all.deb`](https://github.com/JMHBM/Renderbolt/releases/download/1.0.6/renderbolt_1.0.6_all.deb) from the [v1.0.7 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6).
 2. Install it:
 
 ```bash
-sudo apt install ./renderbolt_1.0.7_all.deb
+sudo apt install ./renderbolt_1.0.6_all.deb
 ```
 
 3. Open **Renderbolt** from the app menu, or run `renderbolt`.

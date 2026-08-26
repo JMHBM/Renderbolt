@@ -1,0 +1,23 @@
+name: Idea
+description: A look, a control, a platform, a pipeline change
+title: "[idea] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What you want to see. The smaller and more visual, the better.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Studio / UI
+        - Visualizer look
+        - Export / FFmpeg
+        - Packaging
+        - Windows / macOS / Fedora
+        - Other

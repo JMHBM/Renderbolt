@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.7 — 2026-08-25
+## Unreleased — 1.0.7
 
 - Starter looks: Night Drive, Live Session, Vinyl, After Hours, Neon Rain, Broadcast
 - Remembers last folders and the current look in `~/.config/renderbolt/`
