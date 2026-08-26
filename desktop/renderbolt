@@ -43,9 +43,10 @@ Options:
   --audio PATH         Input audio (mp3, wav, flac, ogg, m4a)
   --cover PATH         Background image
   --out PATH           Output MP4 (required for render)
-  --look PATH          Look JSON (from Save look…)
+  --look PATH          Look JSON (from Save look… or looks/)
   --preset NAME        Starter look: Night Drive, Live Session,
                        Vinyl, After Hours, Neon Rain, Broadcast
+  --list-presets       Print starter look names and exit
   --mode 2D|3D
   --style NAME         Waveform, EQ bars, Circular, Liquid waves
   --theme NAME         Ice, Ember, Forest, Midnight, Mono, Rose,
@@ -61,7 +62,7 @@ Options:
 
 Studio shortcuts:
   Space play/pause   G generate   R shuffle   S save frame
-  arrows seek        Home restart
+  1–6 starter looks  F1 about     arrows seek   Home restart
   Ctrl+O audio       Ctrl+I background
 """
 
@@ -218,6 +219,19 @@ SHARE = os.environ.get(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "share"),
 )
 DEFAULT_COVER = os.path.join(SHARE, "stage.jpg")
+
+
+def _find_looks() -> Path:
+    env = os.environ.get("RENDERBOLT_LOOKS")
+    if env:
+        return Path(env)
+    for cand in (HERE / "looks", HERE.parent / "looks", Path("/opt/renderbolt/share/looks")):
+        if cand.is_dir():
+            return cand
+    return HERE.parent / "looks"
+
+
+LOOKS_DIR = _find_looks()
 CONFIG_PATH = Path.home() / ".config" / "renderbolt" / "config.json"
 BG = "#0a0a0b"
 FG = "#f4f0ea"
@@ -1033,14 +1047,18 @@ class App(tk.Tk):
             bg=BG,
             fg=FG,
             font=("DejaVu Sans", 16, "bold"),
+            cursor="hand2",
         ).pack(side="left", padx=22, pady=16)
+        header.winfo_children()[-1].bind("<Button-1>", lambda _e: self.about())
         tk.Label(
             header,
             text=f"{AUTHOR}  ·  {LICENSE}",
             bg=BG,
             fg=MUTED,
             font=("DejaVu Sans", 10),
+            cursor="hand2",
         ).pack(side="right", padx=22)
+        header.winfo_children()[-1].bind("<Button-1>", lambda _e: self.about())
 
         body = tk.Frame(self, bg=BG)
         body.pack(fill="both", expand=True, padx=20, pady=20)
@@ -1327,6 +1345,13 @@ class App(tk.Tk):
         if e.keysym == "Home":
             self.seek_to(0)
             return "break"
+        if e.keysym in ("F1",) or e.char == "?":
+            self.about()
+            return "break"
+        if e.char in "123456":
+            names = list(STARTER_LOOKS)
+            self.apply_starter(names[int(e.char) - 1])
+            return "break"
         return None
 
     def _try_dnd(self) -> None:
@@ -1474,6 +1499,18 @@ class App(tk.Tk):
             return
         self.apply_look(look)
         self.status.set(f"Look · {name}")
+
+    def about(self) -> None:
+        messagebox.showinfo(
+            APP_NAME,
+            f"{APP_NAME} {VERSION}  (unreleased)\n"
+            f"Public GitHub Release: 1.0.6\n\n"
+            f"Designed by {AUTHOR}\n"
+            f"{LICENSE}\n\n"
+            "Offline. Your files stay on this machine.\n"
+            "github.com/JMHBM/Renderbolt\n\n"
+            "1–6 starter looks   F1 about   S frame   G generate",
+        )
 
     def save_look(self) -> None:
         path = filedialog.asksaveasfilename(
@@ -1792,9 +1829,29 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--aspect")
     p.add_argument("--res")
     p.add_argument("--fps")
+    p.add_argument("--list-presets", action="store_true")
     p.add_argument("--version", action="store_true")
     p.add_argument("-h", "--help", action="store_true")
     return p.parse_args(argv)
+
+
+def resolve_look_file(path: str) -> Path:
+    raw = Path(path)
+    if raw.is_file():
+        return raw
+    candidates = [
+        raw,
+        LOOKS_DIR / path,
+        LOOKS_DIR / f"{path}.json",
+        HERE / "looks" / path,
+        HERE / "looks" / f"{path}.json",
+        Path("/opt/renderbolt/share/looks") / path,
+        Path("/opt/renderbolt/share/looks") / f"{path}.json",
+    ]
+    for cand in candidates:
+        if cand.is_file():
+            return cand
+    raise FileNotFoundError(f"look not found: {path}")
 
 
 def cli_render(args: argparse.Namespace) -> int:
@@ -1810,7 +1867,7 @@ def cli_render(args: argparse.Namespace) -> int:
             return 2
         look = merge_look(look, STARTER_LOOKS[key])
     if args.look:
-        look = merge_look(look, json.loads(Path(args.look).read_text()))
+        look = merge_look(look, json.loads(resolve_look_file(args.look).read_text()))
     overrides = {}
     if args.mode:
         overrides["mode"] = args.mode
@@ -1858,6 +1915,10 @@ def main() -> None:
         return
     if args.version and not args.out:
         print(f"{APP_NAME} {VERSION} · {AUTHOR} · {LICENSE}")
+        return
+    if args.list_presets:
+        for name in STARTER_LOOKS:
+            print(name)
         return
     if args.command == "render" or args.out:
         raise SystemExit(cli_render(args))

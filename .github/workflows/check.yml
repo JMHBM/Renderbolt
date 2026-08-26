@@ -1,0 +1,21 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile desktop
+        run: python3 -m py_compile desktop/renderbolt desktop/engine3d.py desktop/preview3d.py desktop/studio_ui.py
+      - name: CLI help (no Tk)
+        run: python3 desktop/renderbolt --help && python3 desktop/renderbolt --version
+      - name: Looks are JSON
+        run: python3 -c "import json, pathlib; [json.loads(p.read_text()) for p in pathlib.Path('looks').glob('*.json')]"

@@ -19,7 +19,8 @@ Renderbolt is an offline music visualizer. You bring a song and a still. It rend
 - [Welcome](Welcome-to-Renderbolt) — why this project exists
 
 - [Getting Started](Getting-Started) — install the `.deb` and render your first video
-- [Studio](Studio) — styles, colors, placement, shortcuts
+- [Studio](Studio)
+- [Looks](Looks) — styles, colors, placement, shortcuts
 - [Visual Engine](Visual-Engine) — 2D / 3D, VA-API, FFmpeg
 - [Roadmap](Roadmap) — Fedora, Windows, macOS, and what comes after
 

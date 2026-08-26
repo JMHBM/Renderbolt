@@ -3,10 +3,13 @@
 ## Unreleased — 1.0.7
 
 - Starter looks: Night Drive, Live Session, Vinyl, After Hours, Neon Rain, Broadcast
+- Shareable look JSON in `looks/`
 - Remembers last folders and the current look in `~/.config/renderbolt/`
 - Save the current frame as PNG (`S`)
 - Headless CLI: `renderbolt render --audio … --out …`
+- Keys 1–6 load starter looks; F1 / wordmark opens About
 - AppStream metainfo for software centers
+- CI compile check on GitHub Actions
 
 ## 1.0.6 — 2026-08-25
 

@@ -26,6 +26,7 @@ DATA_DIRS = [
     "opt",
     "opt/renderbolt",
     "opt/renderbolt/share",
+    "opt/renderbolt/share/looks",
     "opt/renderbolt/vendor",
     "usr",
     "usr/bin",
@@ -116,6 +117,7 @@ License: CC-BY-4.0
 
 WRAPPER = """#!/bin/sh
 export RENDERBOLT_SHARE=/opt/renderbolt/share
+export RENDERBOLT_LOOKS=/opt/renderbolt/share/looks
 exec python3 /opt/renderbolt/renderbolt "$@"
 """
 
@@ -264,6 +266,10 @@ def main() -> None:
     for junk in vendor.rglob("__pycache__"):
         shutil.rmtree(junk, ignore_errors=True)
     shutil.copy2(ROOT / "public/samples/stage.jpg", data / "opt/renderbolt/share/stage.jpg")
+    looks_src = ROOT / "looks"
+    if looks_src.is_dir():
+        for look in sorted(looks_src.glob("*.json")):
+            shutil.copy2(look, data / "opt/renderbolt/share/looks" / look.name)
     write(data / "usr/share/doc/renderbolt/copyright", COPYRIGHT)
     write(data / "usr/share/doc/renderbolt/LICENSE", (ROOT / "LICENSE").read_text())
     write(data / "usr/share/applications/renderbolt.desktop", DESKTOP)

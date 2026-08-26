@@ -4,6 +4,7 @@
 - [Home](Home)
 - [Getting Started](Getting-Started)
 - [Studio](Studio)
+- [Looks](Looks)
 - [Visual Engine](Visual-Engine)
 - [Roadmap](Roadmap)
 
