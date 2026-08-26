@@ -57,6 +57,7 @@ Options:
   --aspect 16:9|9:16|1:1
   --res 720p|1080p|4K
   --fps 24|30|60
+  --probe-gpu          Test VA-API on every AMD/Intel/NVIDIA render node
   --version
   --help
 
@@ -109,6 +110,8 @@ RESOLUTIONS = {"720p": (1280, 720), "1080p": (1920, 1080), "4K": (3840, 2160)}
 ASPECTS = {"16:9": (16, 9), "9:16": (9, 16), "1:1": (1, 1)}
 VAAPI_DEVICE = "/dev/dri/renderD128"
 PREVIEW_W, PREVIEW_H = 640, 360
+PCI_AMD, PCI_INTEL, PCI_NVIDIA = "0x1002", "0x8086", "0x10de"
+VENDOR_NAME = {PCI_AMD: "AMD", PCI_INTEL: "Intel", PCI_NVIDIA: "NVIDIA"}
 
 THEMES = {
     "Ice": ("#156a96", "#b8ecff"),
@@ -345,10 +348,40 @@ def which(cmd: str) -> str | None:
     return shutil.which(cmd)
 
 
+def ffmpeg_bin() -> str | None:
+    """Prefer a distro ffmpeg. Snap's ffmpeg is usually blocked from /dev/dri."""
+    env = os.environ.get("RENDERBOLT_FFMPEG")
+    if env and os.path.isfile(env):
+        return env
+    ordered: list[str] = []
+    found = shutil.which("ffmpeg")
+    if found:
+        ordered.append(found)
+    for p in ("/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg"):
+        if p not in ordered:
+            ordered.append(p)
+    non_snap: list[str] = []
+    snap: list[str] = []
+    for p in ordered:
+        if not os.path.isfile(p):
+            continue
+        try:
+            real = os.path.realpath(p)
+        except OSError:
+            real = p
+        (snap if "/snap/" in real else non_snap).append(p)
+    if non_snap:
+        return non_snap[0]
+    return snap[0] if snap else None
+
+
 def ffmpeg_encoders() -> set[str]:
+    bin_ = ffmpeg_bin()
+    if not bin_:
+        return set()
     try:
         out = subprocess.check_output(
-            ["ffmpeg", "-hide_banner", "-encoders"],
+            [bin_, "-hide_banner", "-encoders"],
             stderr=subprocess.STDOUT,
             text=True,
         )
@@ -363,82 +396,264 @@ def ffmpeg_encoders() -> set[str]:
 
 
 def vaapi_render_nodes() -> list[str]:
-    env = os.environ.get("RENDERBOLT_VAAPI_DEVICE")
+    env = os.environ.get("RENDERBOLT_VAAPI_DEVICE") or os.environ.get("LIBVA_DEVICE")
     nodes: list[str] = []
     if env and os.path.exists(env):
         nodes.append(env)
-    if os.path.exists(VAAPI_DEVICE) and VAAPI_DEVICE not in nodes:
-        nodes.append(VAAPI_DEVICE)
+    found: list[str] = []
     dri = Path("/dev/dri")
     if dri.is_dir():
-        for path in sorted(dri.glob("renderD*")):
-            p = str(path)
-            if p not in nodes:
-                nodes.append(p)
+        found = [str(p) for p in sorted(dri.glob("renderD*"))]
+
+    def rank(n: str) -> tuple:
+        vendor = dri_vendor(n)
+        # AMD first (dGPU usually has more VRAM than the APU), then Intel, then others.
+        family = {PCI_AMD: 0, PCI_INTEL: 1, PCI_NVIDIA: 2}.get(vendor, 3)
+        return (family, -dri_vram(n), n)
+
+    for n in sorted(found, key=rank):
+        if n not in nodes:
+            nodes.append(n)
     return nodes
 
 
-def probe_vaapi(device: str) -> bool:
-    """Cheap 6-frame encode to confirm h264_vaapi actually works on this node."""
+def dri_sys(node: str, rel: str) -> Path:
+    return Path("/sys/class/drm") / Path(node).name / rel
+
+
+def dri_vendor(node: str) -> str:
+    try:
+        return dri_sys(node, "device/vendor").read_text().strip().lower()
+    except OSError:
+        return ""
+
+
+def dri_vram(node: str) -> int:
+    try:
+        return int(dri_sys(node, "device/mem_info_vram_total").read_text().strip())
+    except (OSError, ValueError):
+        return 0
+
+
+def dri_driver(node: str) -> str:
+    try:
+        return os.path.basename(os.readlink(dri_sys(node, "device/driver")))
+    except OSError:
+        return ""
+
+
+def dri_pretty(node: str) -> str:
+    vendor = VENDOR_NAME.get(dri_vendor(node), dri_vendor(node) or "GPU")
+    driver = dri_driver(node)
+    vram = dri_vram(node)
+    gb = f" {vram / (1024 ** 3):.1f}GB" if vram else ""
+    extra = f", {driver}" if driver else ""
+    return f"{vendor}{gb} ({Path(node).name}{extra})"
+
+
+def ffmpeg_is_snap() -> bool:
+    p = ffmpeg_bin()
+    if not p:
+        return False
+    try:
+        real = os.path.realpath(p)
+    except OSError:
+        real = p
+    return "/snap/" in real
+
+
+def ffmpeg_env_for(device: str) -> dict[str, str]:
+    env = os.environ.copy()
+    vendor = dri_vendor(device)
+    if vendor == PCI_AMD:
+        env.setdefault("LIBVA_DRIVER_NAME", "radeonsi")
+    elif vendor == PCI_NVIDIA:
+        env.setdefault("LIBVA_DRIVER_NAME", "nvidia")
+    return env
+
+
+def vainfo_encode_codecs(device: str, env: dict[str, str]) -> set[str]:
+    """Return {'h264', 'hevc', ...} advertised as EncSlice, or empty if unknown."""
+    if not which("vainfo"):
+        return set()
     try:
         proc = subprocess.run(
-            [
-                "ffmpeg",
-                "-hide_banner",
-                "-nostdin",
-                "-v",
-                "error",
-                "-vaapi_device",
-                device,
-                "-f",
-                "lavfi",
-                "-i",
-                "color=c=black:s=128x128:d=0.2:r=30",
-                "-filter_complex",
-                "[0:v]format=nv12,hwupload[v]",
-                "-map",
-                "[v]",
-                "-c:v",
-                "h264_vaapi",
-                "-f",
-                "null",
-                "-",
-            ],
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=8,
+            ["vainfo", "--display", "drm", "--device", device],
+            capture_output=True,
+            text=True,
+            timeout=6,
+            env=env,
         )
-        return proc.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
-        return False
+        return set()
+    text = (proc.stdout or "") + "\n" + (proc.stderr or "")
+    found: set[str] = set()
+    current = ""
+    for line in text.splitlines():
+        s = line.strip()
+        if s.startswith("VAProfile"):
+            current = s
+        if "EncSlice" in s or "VAEntrypointEncSlice" in s:
+            blob = current + " " + s
+            if "H264" in blob:
+                found.add("h264")
+            if "HEVC" in blob or "H265" in blob:
+                found.add("hevc")
+            if "AV1" in blob:
+                found.add("av1")
+    return found
 
 
-def pick_ffmpeg_codecs() -> tuple[str, str | None, str]:
-    """Return (software_vcodec, vaapi_device or None, acodec)."""
+def probe_vaapi(device: str, encoder: str, env: dict[str, str]) -> tuple[bool, str]:
+    """Confirm a short hardware encode actually completes on this node."""
+    extra = "64"
+    bin_ = ffmpeg_bin() or "ffmpeg"
+    recipes = [
+        [
+            bin_,
+            "-hide_banner",
+            "-nostdin",
+            "-v",
+            "error",
+            "-init_hw_device",
+            f"vaapi=va:{device}",
+            "-filter_hw_device",
+            "va",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=black:s=640x360:d=0.35:r=30",
+            "-filter_complex",
+            f"[0:v]format=nv12,hwupload=extra_hw_frames={extra}[v]",
+            "-map",
+            "[v]",
+            "-c:v",
+            encoder,
+            "-f",
+            "null",
+            "-",
+        ],
+        [
+            bin_,
+            "-hide_banner",
+            "-nostdin",
+            "-v",
+            "error",
+            "-vaapi_device",
+            device,
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=black:s=640x360:d=0.35:r=30",
+            "-vf",
+            f"format=nv12,hwupload=extra_hw_frames={extra}",
+            "-c:v",
+            encoder,
+            "-f",
+            "null",
+            "-",
+        ],
+    ]
+    last = ""
+    for cmd in recipes:
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=12, env=env)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            last = str(exc)
+            continue
+        last = (proc.stderr or proc.stdout or "").strip()
+        if proc.returncode == 0:
+            return True, last
+    return False, last
+
+
+def _write_vaapi_log(body: str) -> None:
+    try:
+        path = CONFIG_PATH.parent / "vaapi.log"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body)
+    except OSError:
+        pass
+
+
+_HW_CACHE: dict | None | str = "unset"
+
+
+def pick_hw_session() -> dict | None:
+    """Find a working VA-API encoder on any GPU (AMD preferred)."""
+    global _HW_CACHE
+    if _HW_CACHE != "unset":
+        return _HW_CACHE  # type: ignore[return-value]
+    enc = ffmpeg_encoders()
+    va_encoders = [e for e in ("h264_vaapi", "hevc_vaapi") if e in enc]
+    notes: list[str] = []
+    if ffmpeg_is_snap():
+        notes.append("ffmpeg is a snap; confinement often blocks /dev/dri. Prefer: sudo apt install ffmpeg")
+    if not va_encoders:
+        notes.append("ffmpeg has no h264_vaapi/hevc_vaapi encoder")
+        _write_vaapi_log("\n".join(notes))
+        _HW_CACHE = None
+        return None
+    for device in vaapi_render_nodes():
+        env = ffmpeg_env_for(device)
+        advertised = vainfo_encode_codecs(device, env)
+        notes.append(f"{dri_pretty(device)}  vainfo encode={advertised or 'unknown'}")
+        order = list(va_encoders)
+        if advertised:
+            ranked = []
+            if "h264" in advertised and "h264_vaapi" in va_encoders:
+                ranked.append("h264_vaapi")
+            if "hevc" in advertised and "hevc_vaapi" in va_encoders:
+                ranked.append("hevc_vaapi")
+            for extra in va_encoders:
+                if extra not in ranked:
+                    ranked.append(extra)
+            order = ranked
+        for encoder in order:
+            ok, log = probe_vaapi(device, encoder, env)
+            notes.append(f"  probe {encoder}: {'OK' if ok else 'fail'} {log[:300]}")
+            if ok:
+                session = {
+                    "device": device,
+                    "encoder": encoder,
+                    "env": env,
+                    "extra": 64,
+                    "label": f"VA-API {dri_pretty(device)} · {encoder}",
+                }
+                _write_vaapi_log("selected " + session["label"] + "\n\n" + "\n".join(notes))
+                _HW_CACHE = session
+                return session
+    _write_vaapi_log("no working VA-API encoder; CPU fallback\n\n" + "\n".join(notes))
+    _HW_CACHE = None
+    return None
+
+
+def pick_ffmpeg_codecs() -> tuple[str, dict | None, str]:
+    """Return (software_vcodec, hw_session or None, acodec)."""
     enc = ffmpeg_encoders()
     audio = next((c for c in ("aac", "libmp3lame", "libopus") if c in enc), "aac")
     software = next((c for c in ("libx264", "libopenh264", "libx265", "mpeg4") if c in enc), "mpeg4")
-    if "h264_vaapi" in enc:
-        for device in vaapi_render_nodes():
-            if probe_vaapi(device):
-                return software, device, audio
-    return software, None, audio
+    return software, pick_hw_session(), audio
 
 
 def build_ffmpeg_cmd(
     dest: str,
     audio_path: str,
     software_vcodec: str,
-    vaapi_device: str | None,
+    hw: dict | None,
     acodec: str,
     width: int = W,
     height: int = H,
     fps: int = FPS,
 ) -> list[str]:
-    cmd = ["ffmpeg", "-y", "-hide_banner", "-nostdin"]
-    if vaapi_device:
-        cmd += ["-vaapi_device", vaapi_device]
+    cmd = [ffmpeg_bin() or "ffmpeg", "-y", "-hide_banner", "-nostdin"]
+    if hw:
+        cmd += [
+            "-init_hw_device",
+            f"vaapi=va:{hw['device']}",
+            "-filter_hw_device",
+            "va",
+        ]
     cmd += [
         "-f",
         "rawvideo",
@@ -453,16 +668,19 @@ def build_ffmpeg_cmd(
         "-i",
         audio_path,
     ]
-    if vaapi_device:
+    if hw:
+        extra = int(hw.get("extra") or 64)
         cmd += [
             "-filter_complex",
-            "[0:v]format=nv12,hwupload[vout]",
+            f"[0:v]format=nv12,hwupload=extra_hw_frames={extra}[vout]",
             "-map",
             "[vout]",
             "-map",
             "1:a?",
             "-c:v",
-            "h264_vaapi",
+            str(hw["encoder"]),
+            "-rc_mode",
+            "CQP",
             "-qp",
             "18",
         ]
@@ -486,11 +704,11 @@ def build_ffmpeg_cmd(
 def decode_audio(path: str, sr: int = 44100) -> tuple["np.ndarray", int]:
     if np is None:
         raise RuntimeError("python3-numpy is required")
-    if not which("ffmpeg"):
+    if not ffmpeg_bin():
         raise RuntimeError("ffmpeg is required to read audio")
     raw = subprocess.check_output(
         [
-            "ffmpeg",
+            ffmpeg_bin() or "ffmpeg",
             "-v",
             "error",
             "-i",
@@ -802,7 +1020,7 @@ def run_export(
     """Encode an MP4. Returns the encoder label used."""
     if np is None:
         raise RuntimeError("Install python3-numpy to analyze audio.")
-    if not which("ffmpeg"):
+    if not ffmpeg_bin():
         raise RuntimeError("Install ffmpeg to decode audio and encode MP4.")
     look = merge_look(look)
     progress = progress or (lambda _msg, _pct: None)
@@ -815,7 +1033,13 @@ def run_export(
     theme = theme_pair_from_look(look)
     bounce = BOUNCE.get(look.get("bounce", "Medium"), 1.0)
     progress("Checking VA-API GPU…", 0)
-    software_v, vaapi_device, acodec = pick_ffmpeg_codecs()
+    software_v, hw, acodec = pick_ffmpeg_codecs()
+    if hw:
+        progress(hw["label"], 0)
+    elif ffmpeg_is_snap():
+        progress("snap ffmpeg cannot use the GPU — using CPU", 0)
+    else:
+        progress("No VA-API encoder — using CPU", 0)
     engine = None
     if look.get("mode") == "3D":
         try:
@@ -830,19 +1054,24 @@ def run_export(
             engine = try_create(ow, oh)
             if engine is not None:
                 engine.set_cover(cover)
-    attempts: list[tuple[str, list[str]]] = []
-    if vaapi_device:
+    attempts: list[tuple[str, list[str], dict | None]] = []
+    if hw:
         attempts.append(
             (
-                f"VA-API ({vaapi_device})",
-                build_ffmpeg_cmd(dest, audio_path, software_v, vaapi_device, acodec, ow, oh, fps),
+                hw["label"],
+                build_ffmpeg_cmd(dest, audio_path, software_v, hw, acodec, ow, oh, fps),
+                hw.get("env"),
             )
         )
     attempts.append(
-        ("CPU", build_ffmpeg_cmd(dest, audio_path, software_v, None, acodec, ow, oh, fps))
+        (
+            "CPU",
+            build_ffmpeg_cmd(dest, audio_path, software_v, None, acodec, ow, oh, fps),
+            None,
+        )
     )
     last_err = ""
-    for idx, (label, cmd) in enumerate(attempts):
+    for idx, (label, cmd, env) in enumerate(attempts):
         progress(f"Rendering with {label}…", 0)
         rc, last_err = pipe_encode(
             cmd,
@@ -860,6 +1089,7 @@ def run_export(
             logo,
             fps,
             progress,
+            env,
         )
         if rc == 0:
             return label
@@ -885,6 +1115,7 @@ def pipe_encode(
     logo: Image.Image | None,
     fps: int,
     progress,
+    env: dict | None = None,
 ) -> tuple[int, str]:
     err_file = tempfile.NamedTemporaryFile(prefix="renderbolt-ffmpeg-", suffix=".log", delete=False)
     err_path = err_file.name
@@ -893,7 +1124,7 @@ def pipe_encode(
     log = ""
     try:
         with open(err_path, "wb") as err:
-            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=err)
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=err, env=env)
             assert proc.stdin is not None
             dt = 1 / max(1, fps)
             zoom_state = [1.12]
@@ -1501,12 +1732,16 @@ class App(tk.Tk):
         self.status.set(f"Look · {name}")
 
     def about(self) -> None:
+        hw = pick_hw_session()
+        gpu = hw["label"] if hw else "CPU (no VA-API encoder found)"
+        snap = "\nffmpeg is a snap — GPU encode is often blocked. apt install ffmpeg." if ffmpeg_is_snap() else ""
         messagebox.showinfo(
             APP_NAME,
             f"{APP_NAME} {VERSION}  (unreleased)\n"
             f"Public GitHub Release: 1.0.6\n\n"
             f"Designed by {AUTHOR}\n"
             f"{LICENSE}\n\n"
+            f"Encoder: {gpu}{snap}\n"
             "Offline. Your files stay on this machine.\n"
             "github.com/JMHBM/Renderbolt\n\n"
             "1–6 starter looks   F1 about   S frame   G generate",
@@ -1830,6 +2065,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--res")
     p.add_argument("--fps")
     p.add_argument("--list-presets", action="store_true")
+    p.add_argument("--probe-gpu", action="store_true")
     p.add_argument("--version", action="store_true")
     p.add_argument("-h", "--help", action="store_true")
     return p.parse_args(argv)
@@ -1908,6 +2144,37 @@ def cli_render(args: argparse.Namespace) -> int:
     return 0
 
 
+def print_gpu_probe() -> int:
+    print(f"ffmpeg: {ffmpeg_bin() or 'NOT FOUND'}")
+    if ffmpeg_is_snap():
+        print("warning: snap ffmpeg is often blocked from /dev/dri")
+        print("         sudo apt install ffmpeg")
+    enc = ffmpeg_encoders()
+    va = [e for e in sorted(enc) if "vaapi" in e]
+    print("vaapi encoders:", ", ".join(va) or "(none)")
+    nodes = vaapi_render_nodes()
+    if not nodes:
+        print("no /dev/dri/renderD* nodes — is the GPU driver loaded?")
+        return 1
+    print("render nodes (AMD first):")
+    for n in nodes:
+        print(f"  {dri_pretty(n)}")
+        print(f"    vendor={dri_vendor(n) or '?'}  vram={dri_vram(n)}  driver={dri_driver(n) or '?'}")
+        env = ffmpeg_env_for(n)
+        advertised = vainfo_encode_codecs(n, env)
+        print(f"    vainfo encode={advertised or 'unknown (install vainfo)'}")
+    hw = pick_hw_session()
+    print()
+    if hw:
+        print("selected:", hw["label"])
+        print("log: ~/.config/renderbolt/vaapi.log")
+        return 0
+    print("no working VA-API session — exports will use the CPU")
+    print("try:  sudo apt install mesa-va-drivers vainfo ffmpeg")
+    print("log: ~/.config/renderbolt/vaapi.log")
+    return 1
+
+
 def main() -> None:
     args = parse_args()
     if args.help:
@@ -1920,6 +2187,8 @@ def main() -> None:
         for name in STARTER_LOOKS:
             print(name)
         return
+    if args.probe_gpu:
+        raise SystemExit(print_gpu_probe())
     if args.command == "render" or args.out:
         raise SystemExit(cli_render(args))
     app = App()

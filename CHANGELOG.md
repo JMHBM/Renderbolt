@@ -7,6 +7,7 @@
 - Remembers last folders and the current look in `~/.config/renderbolt/`
 - Save the current frame as PNG (`S`)
 - Headless CLI: `renderbolt render --audio … --out …`
+- VA-API: rank any AMD GPU (not just renderD128), prefer distro ffmpeg over snap, `hwupload=extra_hw_frames`, `--probe-gpu`
 - Keys 1–6 load starter looks; F1 / wordmark opens About
 - AppStream metainfo for software centers
 - CI compile check on GitHub Actions

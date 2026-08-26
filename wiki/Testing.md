@@ -47,3 +47,17 @@ Starter looks, `S` for PNG, and `renderbolt render --audio … --out …` live h
 | Last | RPM / Fedora / dnf |
 
 If a test fails, open a [bug](https://github.com/JMHBM/Renderbolt/issues/new?template=bug.yml) and say Zorin 18.1.
+
+## GPU encode (VA-API)
+
+From `main` / 1.0.7 source:
+
+```bash
+sudo apt install mesa-va-drivers vainfo ffmpeg
+# not the snap — /usr/bin/ffmpeg
+python3 desktop/renderbolt --probe-gpu
+```
+
+It walks every `/dev/dri/renderD*`, prefers AMD (highest VRAM = the discrete card on laptops), and writes `~/.config/renderbolt/vaapi.log`. F1 / About in the studio shows the pick.
+
+Override if needed: `RENDERBOLT_VAAPI_DEVICE=/dev/dri/renderD129`
