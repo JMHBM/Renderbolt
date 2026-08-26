@@ -1,6 +1,6 @@
 # Getting Started
 
-Renderbolt 1.0.7 is a Linux desktop app. The supported package is Debian / Ubuntu.
+Renderbolt 1.0.6 is the Linux desktop app on GitHub Releases. The supported package is Debian / Ubuntu.
 
 ## Install (Debian / Ubuntu)
 

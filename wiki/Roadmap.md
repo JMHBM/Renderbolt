@@ -1,8 +1,8 @@
 # Roadmap
 
-This is a living list, not a contract. 1.0.7 is Debian. Everything else ships when it is actually tested.
+This is a living list, not a contract. GitHub Release is 1.0.6. 1.0.7 stays on main until we cut it. Everything else ships when it is actually tested.
 
-## Now — 1.0.7
+## Now — 1.0.6 on Releases, 1.0.7 unreleased
 
 - Debian / Ubuntu `.deb`
 - 2D + 3D studio

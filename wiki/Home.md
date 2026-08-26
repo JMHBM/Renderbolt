@@ -10,7 +10,7 @@ Renderbolt is an offline music visualizer. You bring a song and a still. It rend
 
 | | |
 |---|---|
-| **Now** | [Debian / Ubuntu 1.0.7](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6) |
+| **Now** | [Debian / Ubuntu 1.0.6](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6) |
 | **Designed by** | JMHBM |
 | **License** | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 
