@@ -463,10 +463,19 @@ def ffmpeg_is_snap() -> bool:
 
 
 def ffmpeg_env_for(device: str) -> dict[str, str]:
+    """Pin libva to this DRM node.
+
+    LM Studio's AMD path works because it picks a Vulkan/ROCm device and
+    does not let the compositor decide. Same idea here: drop DISPLAY /
+    WAYLAND_DISPLAY so FFmpeg talks DRM, not the iGPU attached to the session.
+    """
     env = os.environ.copy()
+    env.pop("DISPLAY", None)
+    env.pop("WAYLAND_DISPLAY", None)
+    env["LIBVA_DRM_DEVICE"] = device
     vendor = dri_vendor(device)
     if vendor == PCI_AMD:
-        env.setdefault("LIBVA_DRIVER_NAME", "radeonsi")
+        env["LIBVA_DRIVER_NAME"] = "radeonsi"
     elif vendor == PCI_NVIDIA:
         env.setdefault("LIBVA_DRIVER_NAME", "nvidia")
     return env
@@ -505,66 +514,93 @@ def vainfo_encode_codecs(device: str, env: dict[str, str]) -> set[str]:
 
 
 def probe_vaapi(device: str, encoder: str, env: dict[str, str]) -> tuple[bool, str]:
-    """Confirm a short hardware encode actually completes on this node."""
-    extra = "64"
+    """Confirm a short hardware encode actually completes on this node.
+
+    The export path is raw RGB24 on stdin, not lavfi. Probe that pipe or we
+    will 'succeed' here and still fall back to CPU on Generate.
+    """
+    extra = "128"
     bin_ = ffmpeg_bin() or "ffmpeg"
-    recipes = [
-        [
-            bin_,
-            "-hide_banner",
-            "-nostdin",
-            "-v",
-            "error",
-            "-init_hw_device",
-            f"vaapi=va:{device}",
-            "-filter_hw_device",
-            "va",
-            "-f",
-            "lavfi",
-            "-i",
-            "color=c=black:s=640x360:d=0.35:r=30",
-            "-filter_complex",
-            f"[0:v]format=nv12,hwupload=extra_hw_frames={extra}[v]",
-            "-map",
-            "[v]",
-            "-c:v",
-            encoder,
-            "-f",
-            "null",
-            "-",
-        ],
-        [
-            bin_,
-            "-hide_banner",
-            "-nostdin",
-            "-v",
-            "error",
-            "-vaapi_device",
-            device,
-            "-f",
-            "lavfi",
-            "-i",
-            "color=c=black:s=640x360:d=0.35:r=30",
-            "-vf",
-            f"format=nv12,hwupload=extra_hw_frames={extra}",
-            "-c:v",
-            encoder,
-            "-f",
-            "null",
-            "-",
-        ],
+    w, h, nframes = 1920, 1080, 4
+    raw_cmd = [
+        bin_,
+        "-hide_banner",
+        "-nostdin",
+        "-v",
+        "error",
+        "-init_hw_device",
+        f"vaapi=va:{device}",
+        "-filter_hw_device",
+        "va",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "-s",
+        f"{w}x{h}",
+        "-r",
+        "30",
+        "-i",
+        "-",
+        "-vf",
+        f"format=nv12,hwupload=extra_hw_frames={extra}",
+        "-c:v",
+        encoder,
+        "-qp",
+        "18",
+        "-frames:v",
+        str(nframes),
+        "-f",
+        "null",
+        "-",
     ]
-    last = ""
-    for cmd in recipes:
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=12, env=env)
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            last = str(exc)
-            continue
-        last = (proc.stderr or proc.stdout or "").strip()
+    payload = bytes(w * h * 3) * nframes
+    try:
+        proc = subprocess.run(
+            raw_cmd,
+            input=payload,
+            capture_output=True,
+            timeout=20,
+            env=env,
+        )
+        log = (proc.stderr or proc.stdout or b"").decode("utf-8", "replace").strip()
         if proc.returncode == 0:
-            return True, last
-    return False, last
+            return True, log
+        raw_fail = log
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raw_fail = str(exc)
+
+    # Older lavfi recipe — diagnostic only, not sufficient to select the GPU.
+    lavfi = [
+        bin_,
+        "-hide_banner",
+        "-nostdin",
+        "-v",
+        "error",
+        "-init_hw_device",
+        f"vaapi=va:{device}",
+        "-filter_hw_device",
+        "va",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=black:s=640x360:d=0.35:r=30",
+        "-vf",
+        f"format=nv12,hwupload=extra_hw_frames={extra}",
+        "-c:v",
+        encoder,
+        "-f",
+        "null",
+        "-",
+    ]
+    try:
+        proc = subprocess.run(lavfi, capture_output=True, text=True, timeout=12, env=env)
+        lavfi_log = (proc.stderr or proc.stdout or "").strip()
+        lavfi_ok = proc.returncode == 0
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        lavfi_log = str(exc)
+        lavfi_ok = False
+    return False, f"raw rgb24 1080p: {raw_fail or 'fail'}\nlavfi: {'OK' if lavfi_ok else lavfi_log}"
 
 
 def _write_vaapi_log(body: str) -> None:
@@ -617,7 +653,7 @@ def pick_hw_session() -> dict | None:
                     "device": device,
                     "encoder": encoder,
                     "env": env,
-                    "extra": 64,
+                    "extra": 128,
                     "label": f"VA-API {dri_pretty(device)} · {encoder}",
                 }
                 _write_vaapi_log("selected " + session["label"] + "\n\n" + "\n".join(notes))
@@ -669,18 +705,19 @@ def build_ffmpeg_cmd(
         audio_path,
     ]
     if hw:
-        extra = int(hw.get("extra") or 64)
+        extra = int(hw.get("extra") or 128)
+        # -vf (not filter_complex) is how FFmpeg binds filter_hw_device to
+        # the raw RGB stream. Dual-input filter_complex often ignores it
+        # and falls back to a software upload that then fails.
         cmd += [
-            "-filter_complex",
-            f"[0:v]format=nv12,hwupload=extra_hw_frames={extra}[vout]",
+            "-vf",
+            f"format=nv12,hwupload=extra_hw_frames={extra}",
             "-map",
-            "[vout]",
+            "0:v",
             "-map",
             "1:a?",
             "-c:v",
             str(hw["encoder"]),
-            "-rc_mode",
-            "CQP",
             "-qp",
             "18",
         ]
@@ -1094,7 +1131,11 @@ def run_export(
         if rc == 0:
             return label
         if idx + 1 < len(attempts):
-            progress("GPU encode failed, falling back to CPU…", 0)
+            hint = next((ln.strip() for ln in last_err.splitlines() if ln.strip()), "ffmpeg error")
+            _write_vaapi_log(
+                f"export using {label} failed\ncmd: {' '.join(cmd)}\n\n{last_err}"
+            )
+            progress(f"GPU failed ({hint[:90]}), using CPU…", 0)
     detail = last_err.strip() or "ffmpeg failed to encode the video"
     raise RuntimeError(detail[-800:])
 
@@ -2165,6 +2206,7 @@ def print_gpu_probe() -> int:
         print(f"    vainfo encode={advertised or 'unknown (install vainfo)'}")
     hw = pick_hw_session()
     print()
+    print("production probe is raw RGB24 1920x1080 on stdin (same as Generate).")
     if hw:
         print("selected:", hw["label"])
         print("log: ~/.config/renderbolt/vaapi.log")
