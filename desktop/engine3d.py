@@ -206,6 +206,9 @@ class VisualEngine3D:
         self._dyn_vbo = self.ctx.buffer(reserve=8 * 1024 * 1024)
         self._cube_pos, self._cube_n, _ = _cube()
         self._build_cover_quad()
+        info = getattr(self.ctx, "info", {}) or {}
+        self.renderer = str(info.get("GL_RENDERER") or "")
+        self.vendor = str(info.get("GL_VENDOR") or "")
 
     @staticmethod
     def _context(moderngl: Any) -> Any:

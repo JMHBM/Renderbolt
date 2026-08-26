@@ -442,6 +442,17 @@ def dri_driver(node: str) -> str:
         return ""
 
 
+def dri_pci_prime(node: str) -> str:
+    """Mesa DRI_PRIME value for this render node, e.g. pci-0000_03_00_0."""
+    try:
+        bus = os.path.basename(os.path.realpath(dri_sys(node, "device")))
+        if ":" not in bus:
+            return ""
+        return "pci-" + bus.replace(":", "_").replace(".", "_")
+    except OSError:
+        return ""
+
+
 def dri_pretty(node: str) -> str:
     vendor = VENDOR_NAME.get(dri_vendor(node), dri_vendor(node) or "GPU")
     driver = dri_driver(node)
@@ -473,6 +484,9 @@ def ffmpeg_env_for(device: str) -> dict[str, str]:
     env.pop("DISPLAY", None)
     env.pop("WAYLAND_DISPLAY", None)
     env["LIBVA_DRM_DEVICE"] = device
+    prime = dri_pci_prime(device)
+    if prime:
+        env["DRI_PRIME"] = prime
     vendor = dri_vendor(device)
     if vendor == PCI_AMD:
         env["LIBVA_DRIVER_NAME"] = "radeonsi"
@@ -1073,6 +1087,11 @@ def run_export(
     software_v, hw, acodec = pick_ffmpeg_codecs()
     if hw:
         progress(hw["label"], 0)
+        prime = dri_pci_prime(hw["device"])
+        if prime:
+            os.environ["DRI_PRIME"] = prime
+        os.environ["LIBVA_DRM_DEVICE"] = hw["device"]
+        os.environ.setdefault("LIBVA_DRIVER_NAME", "radeonsi")
     elif ffmpeg_is_snap():
         progress("snap ffmpeg cannot use the GPU — using CPU", 0)
     else:
@@ -1091,6 +1110,9 @@ def run_export(
             engine = try_create(ow, oh)
             if engine is not None:
                 engine.set_cover(cover)
+                gl = getattr(engine, "renderer", "") or ""
+                if gl:
+                    progress(f"GL {gl}", 0)
     attempts: list[tuple[str, list[str], dict | None]] = []
     if hw:
         attempts.append(
