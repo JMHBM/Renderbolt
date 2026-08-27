@@ -56,7 +56,21 @@ def freeze() -> None:
         shutil.copy2(ROOT / "desktop" / name, WORK / name)
     share = WORK / "share"
     share.mkdir(exist_ok=True)
-    shutil.copy2(ROOT / "public" / "samples" / "stage.jpg", share / "stage.jpg")
+    cover = None
+    for cand in (
+        ROOT / "desktop" / "share" / "stage.jpg",
+        ROOT / "public" / "samples" / "stage.jpg",
+        ROOT / "packaging" / "windows" / "stage.jpg",
+    ):
+        if cand.is_file():
+            cover = cand
+            break
+    if cover is None:
+        from PIL import Image
+        img = Image.new("RGB", (1920, 1080), (12, 12, 16))
+        img.save(share / "stage.jpg", quality=88)
+    else:
+        shutil.copy2(cover, share / "stage.jpg")
     looks = WORK / "looks"
     if looks.exists():
         shutil.rmtree(looks)
