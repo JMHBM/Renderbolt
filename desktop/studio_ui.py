@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import tkinter as tk
 from typing import Callable
 
@@ -18,7 +19,7 @@ ACCENT_FG = "#0a0a0b"
 
 
 def _font(size: int, weight: str = "normal") -> tuple:
-    family = "DejaVu Sans"
+    family = "Segoe UI" if sys.platform == "win32" else "DejaVu Sans"
     if weight == "bold":
         return (family, size, "bold")
     return (family, size)

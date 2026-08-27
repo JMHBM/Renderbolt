@@ -13,6 +13,10 @@ node_modules/
 .ruff_cache/
 packaging/deb-root/
 packaging/rpm-root/
+packaging/windows/work/
+packaging/windows/dist/
+packaging/windows/build/
+
 artifacts/
 attachments/
 *.log

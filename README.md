@@ -5,9 +5,10 @@ Cinematic audio visualizer. Drop in a song and a still, pick a look, and export 
 Designed by **JMHBM**. [CC BY 4.0](LICENSE).
 
 **Public release: [1.0.6](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6)** · Debian / Ubuntu `.deb`  
-`main` is 1.0.7 in progress. Test target is Debian-family (Zorin OS / Ubuntu). Windows after the `.deb` is solid. RPM last. macOS in a VM.
+`main` is 1.0.7 in progress. Windows installer is built from `main` (Inno Setup). Fedora / RPM last. macOS later.
 
 [![check](https://github.com/JMHBM/Renderbolt/actions/workflows/check.yml/badge.svg)](https://github.com/JMHBM/Renderbolt/actions/workflows/check.yml)
+[![windows](https://github.com/JMHBM/Renderbolt/actions/workflows/windows.yml/badge.svg)](https://github.com/JMHBM/Renderbolt/actions/workflows/windows.yml)
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](LICENSE)
 
 ![Renderbolt](docs/banner.jpg)
@@ -15,8 +16,6 @@ Designed by **JMHBM**. [CC BY 4.0](LICENSE).
 ![Renderbolt studio](docs/studio.png)
 
 ## Install (1.0.6)
-
-Debian, Ubuntu, and Zorin OS (apt):
 
 ```bash
 sudo apt install ./renderbolt_1.0.6_all.deb
@@ -26,12 +25,17 @@ Get the file from the [v1.0.6 release](https://github.com/JMHBM/Renderbolt/relea
 
 Open **Renderbolt** from the app menu, or run `renderbolt`.
 
-### Coming soon (in this order)
+### Windows (1.0.7 / `main`)
 
-1. Windows 11 (after the `.deb` is signed off)
-2. macOS (VM — no Mac on the desk)
-3. Fedora / RPM / other distros last
+Inno Setup installer, 64-bit. Download **Renderbolt-1.0.7-setup.exe** from the [windows workflow artifacts](https://github.com/JMHBM/Renderbolt/actions/workflows/windows.yml) (not on the 1.0.6 GitHub Release yet).
 
+On a Windows 11 machine you can also build it:
+
+```powershell
+python scripts\build-windows.py
+```
+
+That bundles FFmpeg. AMD cards use **AMF**, NVIDIA **NVENC**, Intel **QSV**, with CPU fallback.
 
 ## From source (`main` / 1.0.7)
 

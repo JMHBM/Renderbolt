@@ -11,6 +11,7 @@
 - Keys 1–6 load starter looks; F1 / wordmark opens About
 - AppStream metainfo for software centers
 - CI compile check on GitHub Actions
+- Windows installer (Inno Setup): AMF / NVENC / QSV, bundled FFmpeg
 
 ## 1.0.6 — 2026-08-25
 

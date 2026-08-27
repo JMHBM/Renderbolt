@@ -1,0 +1,30 @@
+name: windows
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - desktop/**
+      - packaging/windows/**
+      - looks/**
+      - scripts/build-windows.py
+      - LICENSE
+      - .github/workflows/windows.yml
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Inno Setup
+        run: choco install innosetup -y
+      - name: Build installer
+        run: python scripts/build-windows.py
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: Renderbolt-1.0.7-setup
+          path: public/downloads/Renderbolt-1.0.7-setup.exe

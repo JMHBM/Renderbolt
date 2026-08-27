@@ -21,6 +21,12 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 VENDOR = HERE / "vendor"
+if getattr(sys, "frozen", False):
+    HERE = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    VENDOR = HERE / "vendor"
+APP_DIR = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+WIN = sys.platform == "win32"
+UI_FONT = "Segoe UI" if WIN else "DejaVu Sans"
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
@@ -57,7 +63,7 @@ Options:
   --aspect 16:9|9:16|1:1
   --res 720p|1080p|4K
   --fps 24|30|60
-  --probe-gpu          Test VA-API on every AMD/Intel/NVIDIA render node
+  --probe-gpu          Test hardware encoders (VA-API / AMF / NVENC / QSV)
   --version
   --help
 
@@ -219,7 +225,10 @@ STARTER_LOOKS: dict[str, dict] = {
 
 SHARE = os.environ.get(
     "RENDERBOLT_SHARE",
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "share"),
+    str(next(
+        (p for p in (HERE / "share", APP_DIR / "share") if p.is_dir()),
+        HERE / "share",
+    )),
 )
 DEFAULT_COVER = os.path.join(SHARE, "stage.jpg")
 
@@ -228,14 +237,22 @@ def _find_looks() -> Path:
     env = os.environ.get("RENDERBOLT_LOOKS")
     if env:
         return Path(env)
-    for cand in (HERE / "looks", HERE.parent / "looks", Path("/opt/renderbolt/share/looks")):
+    for cand in (
+        HERE / "looks",
+        APP_DIR / "looks",
+        HERE.parent / "looks",
+        Path("/opt/renderbolt/share/looks"),
+    ):
         if cand.is_dir():
             return cand
-    return HERE.parent / "looks"
+    return HERE / "looks"
 
 
 LOOKS_DIR = _find_looks()
-CONFIG_PATH = Path.home() / ".config" / "renderbolt" / "config.json"
+if WIN:
+    CONFIG_PATH = Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming") / "Renderbolt" / "config.json"
+else:
+    CONFIG_PATH = Path.home() / ".config" / "renderbolt" / "config.json"
 BG = "#0a0a0b"
 FG = "#f4f0ea"
 MUTED = "#9a958c"
@@ -348,31 +365,63 @@ def which(cmd: str) -> str | None:
     return shutil.which(cmd)
 
 
+def _popen_kw() -> dict:
+    kw: dict = {}
+    if WIN:
+        kw["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    return kw
+
+
 def ffmpeg_bin() -> str | None:
-    """Prefer a distro ffmpeg. Snap's ffmpeg is usually blocked from /dev/dri."""
+    """Prefer a bundled or distro ffmpeg. Snap's ffmpeg is usually blocked from /dev/dri."""
     env = os.environ.get("RENDERBOLT_FFMPEG")
     if env and os.path.isfile(env):
         return env
+    names = ("ffmpeg.exe", "ffmpeg") if WIN else ("ffmpeg",)
     ordered: list[str] = []
-    found = shutil.which("ffmpeg")
-    if found:
-        ordered.append(found)
-    for p in ("/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg"):
-        if p not in ordered:
-            ordered.append(p)
+    for name in names:
+        found = shutil.which(name)
+        if found:
+            ordered.append(found)
+        for folder in (APP_DIR, HERE, APP_DIR / "ffmpeg", HERE / "ffmpeg"):
+            cand = folder / name
+            if cand.is_file():
+                ordered.append(str(cand))
+    if not WIN:
+        for p in ("/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg"):
+            if p not in ordered:
+                ordered.append(p)
     non_snap: list[str] = []
     snap: list[str] = []
+    seen: set[str] = set()
     for p in ordered:
-        if not os.path.isfile(p):
+        if p in seen or not os.path.isfile(p):
             continue
+        seen.add(p)
         try:
             real = os.path.realpath(p)
         except OSError:
             real = p
-        (snap if "/snap/" in real else non_snap).append(p)
+        (snap if "/snap/" in real.replace("\\", "/") else non_snap).append(p)
     if non_snap:
         return non_snap[0]
     return snap[0] if snap else None
+
+
+def ffplay_bin() -> str | None:
+    env = os.environ.get("RENDERBOLT_FFPLAY")
+    if env and os.path.isfile(env):
+        return env
+    names = ("ffplay.exe", "ffplay") if WIN else ("ffplay",)
+    for name in names:
+        found = shutil.which(name)
+        if found:
+            return found
+        for folder in (APP_DIR, HERE, Path(ffmpeg_bin() or ".").parent):
+            cand = Path(folder) / name
+            if cand.is_file():
+                return str(cand)
+    return None
 
 
 def ffmpeg_encoders() -> set[str]:
@@ -384,6 +433,7 @@ def ffmpeg_encoders() -> set[str]:
             [bin_, "-hide_banner", "-encoders"],
             stderr=subprocess.STDOUT,
             text=True,
+            **_popen_kw(),
         )
     except (OSError, subprocess.CalledProcessError):
         return set()
@@ -629,8 +679,96 @@ def _write_vaapi_log(body: str) -> None:
 _HW_CACHE: dict | None | str = "unset"
 
 
+def pick_d3d_hw_session() -> dict | None:
+    """Windows hardware encode: AMD AMF, then NVIDIA NVENC, then Intel QSV."""
+    global _HW_CACHE
+    if _HW_CACHE != "unset":
+        return _HW_CACHE  # type: ignore[return-value]
+    enc = ffmpeg_encoders()
+    notes: list[str] = []
+    recipes: list[tuple[str, str, list[str]]] = [
+        (
+            "h264_amf",
+            "AMD AMF",
+            ["-c:v", "h264_amf", "-quality", "balanced", "-rc", "cqp", "-qp_i", "18", "-qp_p", "18"],
+        ),
+        (
+            "h264_nvenc",
+            "NVIDIA NVENC",
+            ["-c:v", "h264_nvenc", "-preset", "p4", "-rc", "constqp", "-qp", "18"],
+        ),
+        (
+            "h264_qsv",
+            "Intel Quick Sync",
+            ["-c:v", "h264_qsv", "-global_quality", "18"],
+        ),
+    ]
+    bin_ = ffmpeg_bin() or "ffmpeg"
+    w, h, nframes = 1920, 1080, 4
+    payload = bytes(w * h * 3) * nframes
+    for encoder, label, extra in recipes:
+        if encoder not in enc:
+            notes.append(f"{encoder}: not in this ffmpeg")
+            continue
+        cmd = [
+            bin_,
+            "-hide_banner",
+            "-nostdin",
+            "-v",
+            "error",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "-s",
+            f"{w}x{h}",
+            "-r",
+            "30",
+            "-i",
+            "-",
+            "-vf",
+            "format=yuv420p",
+            *extra,
+            "-frames:v",
+            str(nframes),
+            "-f",
+            "null",
+            "-",
+        ]
+        try:
+            proc = subprocess.run(
+                cmd,
+                input=payload,
+                capture_output=True,
+                timeout=20,
+                **_popen_kw(),
+            )
+            log = (proc.stderr or proc.stdout or b"").decode("utf-8", "replace").strip()
+            ok = proc.returncode == 0
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            log = str(exc)
+            ok = False
+        notes.append(f"probe {encoder}: {'OK' if ok else 'fail'} {log[:300]}")
+        if ok:
+            session = {
+                "kind": "d3d",
+                "encoder": encoder,
+                "extra_args": extra,
+                "label": f"{label} · {encoder}",
+                "env": os.environ.copy(),
+            }
+            _write_vaapi_log("selected " + session["label"] + "\n\n" + "\n".join(notes))
+            _HW_CACHE = session
+            return session
+    _write_vaapi_log("no Windows hardware encoder; CPU fallback\n\n" + "\n".join(notes))
+    _HW_CACHE = None
+    return None
+
+
 def pick_hw_session() -> dict | None:
-    """Find a working VA-API encoder on any GPU (AMD preferred)."""
+    """Find a working hardware encoder (VA-API on Linux, AMF/NVENC/QSV on Windows)."""
+    if WIN:
+        return pick_d3d_hw_session()
     global _HW_CACHE
     if _HW_CACHE != "unset":
         return _HW_CACHE  # type: ignore[return-value]
@@ -664,6 +802,7 @@ def pick_hw_session() -> dict | None:
             notes.append(f"  probe {encoder}: {'OK' if ok else 'fail'} {log[:300]}")
             if ok:
                 session = {
+                    "kind": "vaapi",
                     "device": device,
                     "encoder": encoder,
                     "env": env,
@@ -697,7 +836,9 @@ def build_ffmpeg_cmd(
     fps: int = FPS,
 ) -> list[str]:
     cmd = [ffmpeg_bin() or "ffmpeg", "-y", "-hide_banner", "-nostdin"]
-    if hw:
+    kind = (hw or {}).get("kind")
+    if hw and kind != "d3d" and hw.get("device"):
+        kind = "vaapi"
         cmd += [
             "-init_hw_device",
             f"vaapi=va:{hw['device']}",
@@ -718,11 +859,8 @@ def build_ffmpeg_cmd(
         "-i",
         audio_path,
     ]
-    if hw:
+    if hw and kind == "vaapi":
         extra = int(hw.get("extra") or 128)
-        # -vf (not filter_complex) is how FFmpeg binds filter_hw_device to
-        # the raw RGB stream. Dual-input filter_complex often ignores it
-        # and falls back to a software upload that then fails.
         cmd += [
             "-vf",
             f"format=nv12,hwupload=extra_hw_frames={extra}",
@@ -734,6 +872,17 @@ def build_ffmpeg_cmd(
             str(hw["encoder"]),
             "-qp",
             "18",
+        ]
+    elif hw and kind == "d3d":
+        extra_args = list(hw.get("extra_args") or ["-c:v", str(hw["encoder"])])
+        cmd += [
+            "-vf",
+            "format=yuv420p",
+            "-map",
+            "0:v",
+            "-map",
+            "1:a?",
+            *extra_args,
         ]
     else:
         cmd += ["-c:v", software_vcodec, "-pix_fmt", "yuv420p"]
@@ -773,7 +922,8 @@ def decode_audio(path: str, sr: int = 44100) -> tuple["np.ndarray", int]:
             "-ar",
             str(sr),
             "pipe:1",
-        ]
+        ],
+        **_popen_kw(),
     )
     samples = np.frombuffer(raw, dtype=np.float32)
     return samples, sr
@@ -925,7 +1075,10 @@ def draw_logo(img: Image.Image, logo: Image.Image | None) -> None:
 
 
 def font(size: int, bold: bool = False) -> ImageFont.ImageFont:
+    windir = os.environ.get("WINDIR", r"C:\Windows")
     candidates = [
+        os.path.join(windir, "Fonts", "segoeuib.ttf" if bold else "segoeui.ttf"),
+        os.path.join(windir, "Fonts", "arialbd.ttf" if bold else "arial.ttf"),
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
     ]
@@ -1187,7 +1340,13 @@ def pipe_encode(
     log = ""
     try:
         with open(err_path, "wb") as err:
-            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=err, env=env)
+            proc = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stderr=err,
+                env=env,
+                **_popen_kw(),
+            )
             assert proc.stdin is not None
             dt = 1 / max(1, fps)
             zoom_state = [1.12]
@@ -1340,7 +1499,7 @@ class App(tk.Tk):
             text="RENDERBOLT",
             bg=BG,
             fg=FG,
-            font=("DejaVu Sans", 16, "bold"),
+            font=(UI_FONT, 16, "bold"),
             cursor="hand2",
         ).pack(side="left", padx=22, pady=16)
         header.winfo_children()[-1].bind("<Button-1>", lambda _e: self.about())
@@ -1349,7 +1508,7 @@ class App(tk.Tk):
             text=f"{AUTHOR}  ·  {LICENSE}",
             bg=BG,
             fg=MUTED,
-            font=("DejaVu Sans", 10),
+            font=(UI_FONT, 10),
             cursor="hand2",
         ).pack(side="right", padx=22)
         header.winfo_children()[-1].bind("<Button-1>", lambda _e: self.about())
@@ -1365,7 +1524,7 @@ class App(tk.Tk):
         scroller.pack(fill="both", expand=True)
         left = scroller.body
 
-        tk.Label(left, text="STUDIO", bg=CARD, fg=MUTED, font=("DejaVu Sans", 9, "bold")).pack(anchor="w", pady=(0, 12))
+        tk.Label(left, text="STUDIO", bg=CARD, fg=MUTED, font=(UI_FONT, 9, "bold")).pack(anchor="w", pady=(0, 12))
 
         self.audio_var = tk.StringVar(value="Demo beat")
         self.image_var = tk.StringVar(value=os.path.basename(self.image_path or "None"))
@@ -1397,7 +1556,7 @@ class App(tk.Tk):
         grid.columnconfigure(0, weight=1)
         grid.columnconfigure(1, weight=1)
 
-        shuffle_btn = tk.Label(left, text="Shuffle look", bg="#1a1a1e", fg=FG, font=("DejaVu Sans", 9), pady=8, cursor="hand2")
+        shuffle_btn = tk.Label(left, text="Shuffle look", bg="#1a1a1e", fg=FG, font=(UI_FONT, 9), pady=8, cursor="hand2")
         shuffle_btn.pack(fill="x", pady=(10, 0))
         shuffle_btn.bind("<Button-1>", lambda _e: self.shuffle_look())
 
@@ -1411,7 +1570,7 @@ class App(tk.Tk):
                 text=name,
                 bg="#1a1a1e",
                 fg=FG,
-                font=("DejaVu Sans", 8),
+                font=(UI_FONT, 8),
                 pady=7,
                 cursor="hand2",
             )
@@ -1421,7 +1580,7 @@ class App(tk.Tk):
         starters.columnconfigure(1, weight=1)
 
         self.adv_open = tk.BooleanVar(value=False)
-        adv_btn = tk.Label(left, text="Advanced  ▾", bg=CARD, fg=FG, font=("DejaVu Sans", 10), cursor="hand2", anchor="w")
+        adv_btn = tk.Label(left, text="Advanced  ▾", bg=CARD, fg=FG, font=(UI_FONT, 10), cursor="hand2", anchor="w")
         adv_btn.pack(fill="x", pady=(16, 4))
         adv = tk.Frame(left, bg=CARD)
         self._adv = adv
@@ -1486,7 +1645,7 @@ class App(tk.Tk):
         self.mirror = tk.BooleanVar(value=False)
         Toggle(adv, "Mirror", self.mirror).pack(fill="x", pady=(10, 0))
 
-        reset = tk.Label(adv, text="Reset placement", bg="#1a1a1e", fg=FG, font=("DejaVu Sans", 9), pady=6, cursor="hand2")
+        reset = tk.Label(adv, text="Reset placement", bg="#1a1a1e", fg=FG, font=(UI_FONT, 9), pady=6, cursor="hand2")
         reset.pack(fill="x", pady=(8, 0))
 
         def do_reset(_e=None):
@@ -1535,7 +1694,7 @@ class App(tk.Tk):
         self.logo_im: Image.Image | None = None
         logo_row = tk.Frame(adv, bg=CARD)
         logo_row.pack(fill="x", pady=(12, 0))
-        tk.Label(logo_row, text="Watermark logo", bg="#1a1a1e", fg=FG, font=("DejaVu Sans", 9), pady=6, cursor="hand2").pack(fill="x")
+        tk.Label(logo_row, text="Watermark logo", bg="#1a1a1e", fg=FG, font=(UI_FONT, 9), pady=6, cursor="hand2").pack(fill="x")
         logo_row.winfo_children()[0].bind("<Button-1>", lambda _e: self.pick_logo())
 
         looks = tk.Frame(adv, bg=CARD)
@@ -1546,7 +1705,7 @@ class App(tk.Tk):
             ("Load look…", self.load_look),
             ("Save frame…", self.snapshot),
         ):
-            tk.Label(looks, text=text, bg="#1a1a1e", fg=FG, font=("DejaVu Sans", 9), pady=6, cursor="hand2").pack(fill="x", pady=2)
+            tk.Label(looks, text=text, bg="#1a1a1e", fg=FG, font=(UI_FONT, 9), pady=6, cursor="hand2").pack(fill="x", pady=2)
             looks.winfo_children()[-1].bind("<Button-1>", lambda _e, c=cmd: c())
 
         right = tk.Frame(body, bg=BG)
@@ -1566,14 +1725,14 @@ class App(tk.Tk):
             text="▶",
             bg="#2a2c32",
             fg=FG,
-            font=("DejaVu Sans", 12),
+            font=(UI_FONT, 12),
             width=3,
             pady=8,
             cursor="hand2",
         )
         self.play_btn.pack(side="left", padx=(0, 8))
         self.play_btn.bind("<Button-1>", lambda _e: self.toggle_play())
-        self.rew_btn = tk.Label(bar, text="⏮", bg="#2a2c32", fg=FG, font=("DejaVu Sans", 11), width=3, pady=8, cursor="hand2")
+        self.rew_btn = tk.Label(bar, text="⏮", bg="#2a2c32", fg=FG, font=(UI_FONT, 11), width=3, pady=8, cursor="hand2")
         self.rew_btn.pack(side="left", padx=(0, 12))
         self.rew_btn.bind("<Button-1>", lambda _e: self.seek_to(0.0))
 
@@ -1584,14 +1743,14 @@ class App(tk.Tk):
         self.pbar.bind("<Button-1>", self._seek_click)
         mid.bind("<Button-1>", self._seek_click)
         self.time_var = tk.StringVar(value="0:00 / 0:16")
-        tk.Label(mid, textvariable=self.time_var, bg=CARD, fg=MUTED, font=("DejaVu Sans", 9), anchor="w").pack(fill="x")
+        tk.Label(mid, textvariable=self.time_var, bg=CARD, fg=MUTED, font=(UI_FONT, 9), anchor="w").pack(fill="x")
 
         self.gen_btn = tk.Label(
             bar,
             text="  Generate MP4  ",
             bg=FG,
             fg=BG,
-            font=("DejaVu Sans", 11, "bold"),
+            font=(UI_FONT, 11, "bold"),
             pady=10,
             padx=16,
             cursor="hand2",
@@ -1600,7 +1759,7 @@ class App(tk.Tk):
         self.gen_btn.bind("<Button-1>", lambda _e: self.generate())
 
         self.status = tk.StringVar(value="Space play · G generate · R shuffle · S frame · arrows seek")
-        tk.Label(right, textvariable=self.status, bg=BG, fg=MUTED, font=("DejaVu Sans", 9), anchor="w").pack(fill="x", pady=(10, 0))
+        tk.Label(right, textvariable=self.status, bg=BG, fg=MUTED, font=(UI_FONT, 9), anchor="w").pack(fill="x", pady=(10, 0))
 
         style = ttk.Style(self)
         try:
@@ -1902,12 +2061,14 @@ class App(tk.Tk):
     def _start_audio(self) -> None:
         self._stop_audio()
         path = self.audio_path
-        if not path or not which("ffplay"):
+        play = ffplay_bin()
+        if not path or not play:
             return
         self._player = subprocess.Popen(
-            ["ffplay", "-nodisp", "-autoexit", "-ss", f"{self._t0:.2f}", "-loglevel", "quiet", path],
+            [play, "-nodisp", "-autoexit", "-ss", f"{self._t0:.2f}", "-loglevel", "quiet", path],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            **_popen_kw(),
         )
 
     def _stop_audio(self) -> None:
@@ -2213,6 +2374,19 @@ def print_gpu_probe() -> int:
         print("warning: snap ffmpeg is often blocked from /dev/dri")
         print("         sudo apt install ffmpeg")
     enc = ffmpeg_encoders()
+    if WIN:
+        wanted = [e for e in ("h264_amf", "h264_nvenc", "h264_qsv", "libx264") if e in enc]
+        print("windows encoders:", ", ".join(wanted) or "(none)")
+        hw = pick_hw_session()
+        print()
+        print("production probe is raw RGB24 1920x1080 on stdin (same as Generate).")
+        if hw:
+            print("selected:", hw["label"])
+            print("log:", CONFIG_PATH.parent / "vaapi.log")
+            return 0
+        print("no hardware encoder — exports will use the CPU (libx264)")
+        print("AMD: h264_amf   NVIDIA: h264_nvenc   Intel: h264_qsv")
+        return 1
     va = [e for e in sorted(enc) if "vaapi" in e]
     print("vaapi encoders:", ", ".join(va) or "(none)")
     nodes = vaapi_render_nodes()
