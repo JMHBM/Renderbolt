@@ -26,3 +26,4 @@ dist/
 .tanstack/
 public/downloads/*.rpm
 public/downloads/*.deb
+public/downloads/*.exe
