@@ -16,7 +16,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
+import traceback
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -1236,19 +1238,21 @@ def run_export(
     frames = max(1, int(duration * fps))
     theme = theme_pair_from_look(look)
     bounce = BOUNCE.get(look.get("bounce", "Medium"), 1.0)
-    progress("Checking VA-API GPU…", 0)
+    progress("Checking GPU encoder…", 0)
     software_v, hw, acodec = pick_ffmpeg_codecs()
     if hw:
         progress(hw["label"], 0)
-        prime = dri_pci_prime(hw["device"])
-        if prime:
-            os.environ["DRI_PRIME"] = prime
-        os.environ["LIBVA_DRM_DEVICE"] = hw["device"]
-        os.environ.setdefault("LIBVA_DRIVER_NAME", "radeonsi")
+        device = hw.get("device")
+        if device and hw.get("kind") != "d3d":
+            prime = dri_pci_prime(device)
+            if prime:
+                os.environ["DRI_PRIME"] = prime
+            os.environ["LIBVA_DRM_DEVICE"] = device
+            os.environ.setdefault("LIBVA_DRIVER_NAME", "radeonsi")
     elif ffmpeg_is_snap():
         progress("snap ffmpeg cannot use the GPU — using CPU", 0)
     else:
-        progress("No VA-API encoder — using CPU", 0)
+        progress("No hardware encoder — using CPU", 0)
     engine = None
     if look.get("mode") == "3D":
         try:
@@ -1757,6 +1761,7 @@ class App(tk.Tk):
         )
         self.gen_btn.pack(side="right")
         self.gen_btn.bind("<Button-1>", lambda _e: self.generate())
+        self._exporting = False
 
         self.status = tk.StringVar(value="Space play · G generate · R shuffle · S frame · arrows seek")
         tk.Label(right, textvariable=self.status, bg=BG, fg=MUTED, font=(UI_FONT, 9), anchor="w").pack(fill="x", pady=(10, 0))
@@ -1955,7 +1960,7 @@ class App(tk.Tk):
 
     def about(self) -> None:
         hw = pick_hw_session()
-        gpu = hw["label"] if hw else "CPU (no VA-API encoder found)"
+        gpu = hw["label"] if hw else "CPU (software encoder)"
         snap = "\nffmpeg is a snap — GPU encode is often blocked. apt install ffmpeg." if ffmpeg_is_snap() else ""
         messagebox.showinfo(
             APP_NAME,
@@ -2217,6 +2222,8 @@ class App(tk.Tk):
         self._render_preview()
 
     def generate(self) -> None:
+        if getattr(self, "_exporting", False):
+            return
         if not self.audio_path:
             messagebox.showinfo(APP_NAME, "Choose an audio file first.")
             return
@@ -2237,38 +2244,70 @@ class App(tk.Tk):
             self.after_cancel(self._preview_job)
             self._preview_job = None
 
-        def progress(msg: str, pct: float) -> None:
-            self.status.set(msg)
-            if pct:
-                self.pbar["value"] = pct
-            self.update_idletasks()
+        look = self.dump_look()
+        cover = (self.cover or Image.new("RGB", (W, H), (12, 12, 16))).copy()
+        logo = self.logo_im.copy() if self.logo_im is not None else None
+        song, artist, album = self.song.get(), self.artist.get(), self.album.get()
+        audio_path = self.audio_path
 
+        self._exporting = True
+        self.gen_btn.configure(text="  Rendering…  ", cursor="arrow")
+        self.status.set("Starting export…")
+        last_ui = [0.0]
+
+        def progress(msg: str, pct: float) -> None:
+            now = time.monotonic()
+            if now - last_ui[0] < 0.08 and pct < 99:
+                return
+            last_ui[0] = now
+
+            def apply(m: str = msg, p: float = pct) -> None:
+                try:
+                    self.status.set(m)
+                    if p:
+                        self.pbar["value"] = p
+                except tk.TclError:
+                    pass
+
+            self.after(0, apply)
+
+        def work() -> None:
+            try:
+                label = run_export(
+                    audio_path,
+                    dest,
+                    cover,
+                    look,
+                    song,
+                    artist,
+                    album,
+                    logo,
+                    progress,
+                )
+                self.after(0, lambda: self._generate_done(dest, label, None, was_playing))
+            except Exception as exc:
+                _write_vaapi_log("generate failed\n" + traceback.format_exc())
+                self.after(0, lambda e=exc: self._generate_done(dest, "", e, was_playing))
+
+        threading.Thread(target=work, daemon=True, name="renderbolt-export").start()
+
+    def _generate_done(self, dest: str, label: str, err: Exception | None, was_playing: bool) -> None:
+        self._exporting = False
         try:
-            cover = self.cover or Image.new("RGB", (W, H), (12, 12, 16))
-            label = run_export(
-                self.audio_path,
-                dest,
-                cover,
-                self.dump_look(),
-                self.song.get(),
-                self.artist.get(),
-                self.album.get(),
-                self.logo_im,
-                progress,
-            )
+            self.gen_btn.configure(text="  Generate MP4  ", cursor="hand2")
+        except tk.TclError:
+            return
+        if err is not None:
+            messagebox.showerror(APP_NAME, str(err))
+            self.status.set("Generate failed")
+        else:
             self.pbar["value"] = 100
             self.status.set(f"Saved {dest} · {label}")
             self._persist()
             messagebox.showinfo(APP_NAME, f"Saved {dest}\nEncoder: {label}")
-        except Exception as exc:
-            messagebox.showerror(APP_NAME, str(exc))
-            self.status.set("Generate failed")
-        finally:
-            self._playing = False
-            self.play_btn.configure(text="▶")
-            if was_playing:
-                pass
-            self.after(40, self._tick)
+        self._playing = False
+        self.play_btn.configure(text="▶")
+        self.after(40, self._tick)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

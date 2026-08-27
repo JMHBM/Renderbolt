@@ -12,6 +12,7 @@
 - AppStream metainfo for software centers
 - CI compile check on GitHub Actions
 - Windows installer (Inno Setup): AMF / NVENC / QSV, bundled FFmpeg
+- Windows: generate no longer crashes looking for a Linux DRM `device`; export runs off the UI thread so the sidebar still scrolls
 
 ## 1.0.6 — 2026-08-25
 
