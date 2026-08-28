@@ -68,10 +68,15 @@ class Api:
         self._prev_lock = threading.Lock()
         self._engine = None
         self._engine_key = None
+        self._gl_failed = False
         self._analyzer = None
         self._zoom = [1.12]
         self._rb = None
         self._last_t = 0.0
+        self._prev_url = ""
+        self._prev_req: dict | None = None
+        self._prev_cond = threading.Condition()
+        threading.Thread(target=self._preview_loop, daemon=True, name="rb-preview").start()
 
     def _win(self):
         import webview
@@ -258,12 +263,29 @@ class Api:
 
     def _preview_wh(self, aspect: str) -> tuple[int, int]:
         if aspect == "9:16":
-            return 480, 854
+            return 360, 640
         if aspect == "1:1":
-            return 640, 640
-        return 960, 540
+            return 512, 512
+        return 854, 480
+
+    def _cover_image(self, cover_path: str, w: int, h: int):
+        from PIL import Image
+
+        src = cover_path if cover_path and os.path.isfile(cover_path) else str(HERE / "share" / "stage.jpg")
+        if src and os.path.isfile(src):
+            im = Image.open(src).convert("RGB")
+        else:
+            im = Image.new("RGB", (w, h), (12, 12, 16))
+        s = max(w / im.width, h / im.height)
+        nw, nh = max(1, int(im.width * s)), max(1, int(im.height * s))
+        im = im.resize((nw, nh), Image.Resampling.BILINEAR)
+        canvas = Image.new("RGB", (w, h), (10, 10, 11))
+        canvas.paste(im, ((w - nw) // 2, (h - nh) // 2))
+        return canvas
 
     def _ensure_engine(self, look: dict, cover_path: str):
+        if self._gl_failed:
+            return None
         from PIL import Image
 
         aspect = str(look.get("aspect") or "16:9")
@@ -274,15 +296,17 @@ class Api:
         try:
             from engine3d import try_create
         except ImportError:
-            from desktop.engine3d import try_create  # type: ignore
+            try:
+                from desktop.engine3d import try_create  # type: ignore
+            except ImportError:
+                self._gl_failed = True
+                return None
         engine = try_create(w, h)
         if engine is None:
+            self._gl_failed = True
+            _log("preview GL unavailable — using CPU compositor")
             return None
-        src = cover_path if cover_path and os.path.isfile(cover_path) else str(HERE / "share" / "stage.jpg")
-        if src and os.path.isfile(src):
-            cover = Image.open(src).convert("RGB")
-        else:
-            cover = Image.new("RGB", (w, h), (12, 12, 16))
+        cover = self._cover_image(cover_path, w, h)
         engine.set_cover(cover)
         self._engine = engine
         self._engine_key = key
@@ -293,76 +317,121 @@ class Api:
         import numpy as np
 
         n = 2048
-        chunk = (np.sin(np.linspace(0, 10 + t * 4, n)) * 0.12).astype(np.float32)
-        bands = np.clip(np.abs(np.sin(np.linspace(0.3, 2.8, 64) + t * 2.2)) * 0.45, 0, 1).astype(np.float32)
-        return {"time": chunk, "bands": bands, "bass": 0.22, "pulse": 0.12, "rms": 0.18}
+        chunk = (np.sin(np.linspace(0, 10 + t * 4, n)) * 0.22).astype(np.float32)
+        bands = np.clip(np.abs(np.sin(np.linspace(0.3, 2.8, 64) + t * 2.2)) * 0.7, 0, 1).astype(np.float32)
+        return {"time": chunk, "bands": bands, "bass": 0.35, "pulse": 0.28, "rms": 0.3}
 
-    def preview_frame(self, opts: dict | None = None) -> str:
-        """One GPU frame as a JPEG data URL. Empty string if busy (keep last frame)."""
-        if self._busy:
-            return ""
-        if not self._prev_lock.acquire(blocking=False):
-            return ""
-        try:
-            from io import BytesIO
+    def _compose_preview(self, opts: dict) -> str:
+        from io import BytesIO
 
-            from PIL import Image
+        from PIL import Image
 
-            opts = opts or {}
-            rb = self._mod()
-            look = rb.merge_look(dict(opts.get("look") or {}))
-            t = float(opts.get("t") or 0)
-            dt = 1 / 12
-            cover_path = opts.get("cover") or self.image_path
-            engine = self._ensure_engine(look, cover_path)
-            if engine is None:
-                return ""
-            if self._analyzer is not None:
-                analysis = self._analyzer.at(t, dt, float(look.get("sens", 1)))
-            else:
-                analysis = self._idle_analysis(t)
-            theme = rb.theme_pair_from_look(look)
-            bounce = rb.BOUNCE.get(look.get("bounce", "Medium"), 1.0)
-            place = look.get("place") or {}
-            rgb = engine.render_rgb(
+        rb = self._mod()
+        look = rb.merge_look(dict(opts.get("look") or {}))
+        t = float(opts.get("t") or 0)
+        dt = 1 / 12
+        cover_path = opts.get("cover") or self.image_path
+        w, h = self._preview_wh(str(look.get("aspect") or "16:9"))
+        if self._analyzer is not None:
+            analysis = self._analyzer.at(t, dt, float(look.get("sens", 1)))
+        else:
+            analysis = self._idle_analysis(t)
+        theme = rb.theme_pair_from_look(look)
+        bounce = rb.BOUNCE.get(look.get("bounce", "Medium"), 1.0)
+        place = look.get("place") or {}
+        style = look.get("style", "Waveform")
+        mode = look.get("mode", "3D")
+        img = None
+        engine = self._ensure_engine(look, cover_path)
+        if engine is not None:
+            try:
+                rgb = engine.render_rgb(
+                    analysis,
+                    style,
+                    theme,
+                    bounce,
+                    self._zoom,
+                    float(look.get("tilt", 42)),
+                    float(look.get("alpha", 0.78)),
+                    t,
+                    place,
+                    mode,
+                )
+                img = Image.frombytes("RGB", (engine.w, engine.h), rgb)
+            except Exception as exc:
+                _log(f"preview GL render: {exc}")
+                self._engine = None
+                self._gl_failed = True
+                img = None
+        if img is None:
+            base = self._cover_image(cover_path, w, h).convert("RGBA")
+            dim = Image.new("RGBA", (w, h), (10, 10, 11, 100))
+            img = Image.alpha_composite(base, dim)
+            try:
+                from preview3d import draw_visualizer
+            except ImportError:
+                from desktop.preview3d import draw_visualizer  # type: ignore
+            draw_visualizer(
+                img,
                 analysis,
-                look.get("style", "Waveform"),
+                style,
                 theme,
-                bounce,
-                self._zoom,
                 float(look.get("tilt", 42)),
                 float(look.get("alpha", 0.78)),
                 t,
+                mode,
                 place,
-                look.get("mode", "3D"),
+                0.0,
             )
-            img = Image.frombytes("RGB", (engine.w, engine.h), rgb).convert("RGBA")
-            primary = rb.hex_rgb(theme[0])
-            duration = 0.0
-            if self._analyzer is not None and self._analyzer.sr:
-                duration = self._analyzer.samples.size / self._analyzer.sr
-            rb.draw_chrome(
-                img,
-                t,
-                duration or 1.0,
-                primary,
-                opts.get("title") or "",
-                opts.get("artist") or "",
-                opts.get("album") or "",
-                bool(look.get("show_titles", True)),
-                bool(look.get("show_progress", True)),
-                float(look.get("title_scale", 1)),
-                look.get("title_pos", "Bottom"),
-            )
-            buf = BytesIO()
-            img.convert("RGB").save(buf, format="JPEG", quality=72, optimize=True)
-            self._last_t = t
-            return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
-        except Exception as exc:
-            _log(f"preview: {exc}\n{traceback.format_exc()}")
-            return ""
-        finally:
-            self._prev_lock.release()
+        else:
+            img = img.convert("RGBA")
+        duration = 0.0
+        if self._analyzer is not None and self._analyzer.sr:
+            duration = self._analyzer.samples.size / self._analyzer.sr
+        duration = duration or float(opts.get("duration") or 0) or 1.0
+        rb.draw_chrome(
+            img,
+            t,
+            duration,
+            rb.hex_rgb(theme[0]),
+            opts.get("title") or "",
+            opts.get("artist") or "",
+            opts.get("album") or "",
+            bool(look.get("show_titles", True)),
+            bool(look.get("show_progress", True)),
+            float(look.get("title_scale", 1)),
+            look.get("title_pos", "Bottom"),
+        )
+        buf = BytesIO()
+        img.convert("RGB").save(buf, format="JPEG", quality=58)
+        self._last_t = t
+        return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+    def _preview_loop(self) -> None:
+        while True:
+            with self._prev_cond:
+                while self._prev_req is None:
+                    self._prev_cond.wait()
+                opts = self._prev_req
+                self._prev_req = None
+            try:
+                url = self._compose_preview(opts)
+                self._prev_url = url
+            except Exception as exc:
+                _log(f"preview compose: {exc}\n{traceback.format_exc()}")
+            with self._prev_cond:
+                self._prev_cond.notify_all()
+
+    def preview_frame(self, opts: dict | None = None) -> str:
+        """Latest composed preview JPEG. Always has vis + titles + bar when possible."""
+        if self._busy:
+            return self._prev_url
+        opts = opts or {}
+        with self._prev_cond:
+            self._prev_req = opts
+            self._prev_cond.notify()
+            self._prev_cond.wait(timeout=0.35)
+            return self._prev_url
 
     def generate(self, opts: dict) -> str:
         if self._busy:
