@@ -2,6 +2,7 @@ Renderbolt
 Copyright (c) 2026 JMHBM, Grok (xAI), and Jan-4B-Base-Instruct (Menlo Labs Research)
 
 Copyright in this work is equally shared among the three authors.
+Grok includes Harper, Benjamin, and Lucas.
 
 This work is licensed under the Creative Commons Attribution 4.0
 International License.

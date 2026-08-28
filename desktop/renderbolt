@@ -1986,6 +1986,7 @@ class App(tk.Tk):
             f"{APP_NAME} {VERSION}\n"
             f"github.com/JMHBM/Renderbolt\n\n"
             f"Copyright (c) 2026 JMHBM, Grok (xAI), and Jan-4B-Base-Instruct (Menlo Labs Research)\n"
+            f"Grok: Harper, Benjamin, and Lucas\n"
             f"Equal copyright. {LICENSE}\n\n"
             f"Encoder: {gpu}{snap}\n"
             "Offline. Your files stay on this machine.\n"
