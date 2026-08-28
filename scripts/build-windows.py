@@ -50,10 +50,16 @@ def download_ffmpeg(dest: Path) -> None:
 
 def freeze() -> None:
     WORK.mkdir(parents=True, exist_ok=True)
-    entry = WORK / "renderbolt.py"
-    shutil.copy2(ROOT / "desktop" / "renderbolt", entry)
+    entry = WORK / "host.py"
+    shutil.copy2(ROOT / "desktop" / "win" / "host.py", entry)
+    shutil.copy2(ROOT / "desktop" / "renderbolt", WORK / "renderbolt.py")
     for name in ("engine3d.py", "preview3d.py", "studio_ui.py"):
         shutil.copy2(ROOT / "desktop" / name, WORK / name)
+    ui_src = ROOT / "desktop" / "win" / "ui"
+    ui_dst = WORK / "ui"
+    if ui_dst.exists():
+        shutil.rmtree(ui_dst)
+    shutil.copytree(ui_src, ui_dst)
     share = WORK / "share"
     share.mkdir(exist_ok=True)
     cover = None
@@ -67,6 +73,7 @@ def freeze() -> None:
             break
     if cover is None:
         from PIL import Image
+
         img = Image.new("RGB", (1920, 1080), (12, 12, 16))
         img.save(share / "stage.jpg", quality=88)
     else:
@@ -95,10 +102,16 @@ def freeze() -> None:
         str(WORK),
         "--icon",
         str(ico),
+        "--paths",
+        str(WORK),
         "--add-data",
         f"{share}{sep}share",
         "--add-data",
         f"{looks}{sep}looks",
+        "--add-data",
+        f"{ui_dst}{sep}ui",
+        "--hidden-import",
+        "renderbolt",
         "--hidden-import",
         "engine3d",
         "--hidden-import",
@@ -106,13 +119,15 @@ def freeze() -> None:
         "--hidden-import",
         "studio_ui",
         "--hidden-import",
-        "PIL._tkinter_finder",
+        "webview",
         "--hidden-import",
         "numpy",
         "--hidden-import",
         "moderngl",
         "--hidden-import",
         "glcontext",
+        "--collect-all",
+        "webview",
         "--collect-all",
         "moderngl",
         "--collect-all",
@@ -162,7 +177,7 @@ def innosetup() -> Path:
 def main() -> None:
     if os.name != "nt":
         raise SystemExit("build-windows.py must run on Windows (or GitHub windows-latest).")
-    run([sys.executable, "-m", "pip", "install", "-U", "pip", "pyinstaller", "pillow", "numpy", "moderngl"])
+    run([sys.executable, "-m", "pip", "install", "-U", "pip", "pyinstaller", "pillow", "numpy", "moderngl", "pywebview"])
     freeze()
     innosetup()
 
