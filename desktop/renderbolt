@@ -1852,6 +1852,8 @@ class App(tk.Tk):
         self._clock = time.perf_counter() - self._t0
         if self._playing:
             self._start_audio()
+        self._render_preview()
+        self._sync_time_label()
 
     def _seek_click(self, e) -> None:
         w = max(1, e.widget.winfo_width())
@@ -2081,7 +2083,7 @@ class App(tk.Tk):
         self.play_btn.configure(text="⏸")
         self._start_audio()
         if not self._preview_job:
-            self._tick()
+            self._play_watch()
 
     def _start_audio(self) -> None:
         self._stop_audio()
@@ -2120,22 +2122,21 @@ class App(tk.Tk):
 
     def _idle_preview(self) -> None:
         self._idle_preview_job = None
-        if not self._playing:
-            self._render_preview()
+        self._render_preview()
 
-    def _watch_preview_vars(self) -> None:
-        skip = {"time_var", "status"}
-        for name in dir(self):
-            if name in skip or name.startswith("_"):
-                continue
-            obj = getattr(self, name, None)
-            if isinstance(obj, (tk.StringVar, tk.DoubleVar, tk.BooleanVar, tk.IntVar)):
-                try:
-                    obj.trace_add("write", self._mark_preview_dirty)
-                except tk.TclError:
-                    pass
+    def _sync_time_label(self) -> None:
+        p = 0 if self._duration <= 0 else 100 * (self._t0 / self._duration)
+        try:
+            self.pbar["value"] = p
+            self.time_var.set(
+                f"{int(self._t0 // 60)}:{int(self._t0 % 60):02d} / "
+                f"{int(self._duration // 60)}:{int(self._duration % 60):02d}"
+            )
+        except tk.TclError:
+            pass
 
-    def _tick(self) -> None:
+    def _play_watch(self) -> None:
+        """Advance the clock / audio only. Never redraw the preview image."""
         if not self._playing:
             self._preview_job = None
             return
@@ -2151,30 +2152,33 @@ class App(tk.Tk):
                 self.play_btn.configure(text="▶")
                 self._stop_audio()
                 self._preview_job = None
-                self._render_preview()
-                p = 0
-                self.pbar["value"] = p
-                self.time_var.set(
-                    f"{int(self._t0 // 60)}:{int(self._t0 % 60):02d} / "
-                    f"{int(self._duration // 60)}:{int(self._duration % 60):02d}"
-                )
+                self._sync_time_label()
                 return
-        t0 = time.perf_counter()
-        self._render_preview()
-        took = time.perf_counter() - t0
-        self._preview_ms = took * 1000.0
-        p = 0 if self._duration <= 0 else 100 * (self._t0 / self._duration)
-        self.pbar["value"] = p
-        self.time_var.set(
-            f"{int(self._t0 // 60)}:{int(self._t0 % 60):02d} / "
-            f"{int(self._duration // 60)}:{int(self._duration % 60):02d}"
-        )
-        interval = 90 if WIN else 42
-        if took > 0.12:
-            interval = 200
-        elif took > 0.07:
-            interval = 120
-        self._preview_job = self.after(interval, self._tick)
+        elif self._player is not None and self._player.poll() is not None:
+            if self.loop_preview.get():
+                self._t0 = 0.0
+                self._clock = time.perf_counter()
+                self._start_audio()
+            else:
+                self._playing = False
+                self.play_btn.configure(text="▶")
+                self._preview_job = None
+                self._sync_time_label()
+                return
+        self._sync_time_label()
+        self._preview_job = self.after(250, self._play_watch)
+
+    def _watch_preview_vars(self) -> None:
+        skip = {"time_var", "status"}
+        for name in dir(self):
+            if name in skip or name.startswith("_"):
+                continue
+            obj = getattr(self, name, None)
+            if isinstance(obj, (tk.StringVar, tk.DoubleVar, tk.BooleanVar, tk.IntVar)):
+                try:
+                    obj.trace_add("write", self._mark_preview_dirty)
+                except tk.TclError:
+                    pass
 
     def _render_preview(self) -> None:
         if self.cover is None or self._analyzer is None:
