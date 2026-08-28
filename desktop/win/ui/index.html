@@ -567,7 +567,7 @@
       if(!path) return; paintGpu(); await api.save_data_url(path, cv.toDataURL("image/png"));
       $("status").textContent="Saved frame "+basename(path);
     };
-    function about(){ alert("Renderbolt 1.0.7\nDesigned by JMHBM\nCC BY 4.0\n\nWindows studio (WebView2)\nLive preview + Generate share the GPU engine\n\ngithub.com/JMHBM/Renderbolt"); }
+    function about(){ alert("Renderbolt 1.0.8\nDesigned by JMHBM\nCC BY 4.0\n\nWindows studio (WebView2)\nLive preview + Generate share the GPU engine\n\ngithub.com/JMHBM/Renderbolt"); }
     $("aboutL").onclick=$("aboutR").onclick=about;
     window.__rbProgress=(msg,pct)=>{ $("status").textContent=msg+(pct?`  ${pct.toFixed(0)}%`:""); if(pct) $("fill").style.width=pct+"%"; };
     window.__rbDone=(dest,label)=>{ $("gen").disabled=false; $("status").textContent=`Saved ${basename(dest)} · ${label}`; alert("Saved "+dest+"\nEncoder: "+label); };

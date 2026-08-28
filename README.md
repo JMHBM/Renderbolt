@@ -4,7 +4,7 @@ Cinematic audio visualizer. Drop in a song and a still, pick a look, and export 
 
 Designed by **JMHBM**. [CC BY 4.0](LICENSE).
 
-**Latest: [1.0.7](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.7)** · Windows installer + Debian / Ubuntu `.deb`
+**Latest: [1.0.8](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.8)** · Windows installer + Debian / Ubuntu `.deb`
 
 [![check](https://github.com/JMHBM/Renderbolt/actions/workflows/check.yml/badge.svg)](https://github.com/JMHBM/Renderbolt/actions/workflows/check.yml)
 [![windows](https://github.com/JMHBM/Renderbolt/actions/workflows/windows.yml/badge.svg)](https://github.com/JMHBM/Renderbolt/actions/workflows/windows.yml)
@@ -16,7 +16,7 @@ Designed by **JMHBM**. [CC BY 4.0](LICENSE).
 
 ## Windows
 
-Download **[Renderbolt-1.0.7-setup.exe](https://github.com/JMHBM/Renderbolt/releases/download/1.0.7/Renderbolt-1.0.7-setup.exe)** from the [1.0.7 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.7).
+Download **[Renderbolt-1.0.8-setup.exe](https://github.com/JMHBM/Renderbolt/releases/download/1.0.8/Renderbolt-1.0.8-setup.exe)** from the [1.0.8 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.8).
 
 64-bit Windows 10/11. Windows 11 already has WebView2; Windows 10 may need the [Evergreen runtime](https://developer.microsoft.com/microsoft-edge/webview2/). The installer is unsigned, so SmartScreen / Avast may warn on first run.
 
@@ -25,10 +25,10 @@ Hardware encode when the driver is present: **AMD AMF**, **NVIDIA NVENC**, **Int
 ## Debian / Ubuntu
 
 ```bash
-sudo apt install ./renderbolt_1.0.7_all.deb
+sudo apt install ./renderbolt_1.0.8_all.deb
 ```
 
-Get the file from the [1.0.7 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.7). Needs Python 3.10+, Tk, Pillow, NumPy, and FFmpeg. On AMD GPUs, install `mesa-va-drivers`.
+Get the file from the [1.0.8 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.8). Needs Python 3.10+, Tk, Pillow, NumPy, and FFmpeg. On AMD GPUs, install `mesa-va-drivers`.
 
 Open **Renderbolt** from the app menu, or run `renderbolt`.
 

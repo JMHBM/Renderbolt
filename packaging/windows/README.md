@@ -12,4 +12,4 @@ Build on Windows 11 or `windows-latest`:
 python scripts/build-windows.py
 ```
 
-Output: `public/downloads/Renderbolt-1.0.7-setup.exe`
+Output: `public/downloads/Renderbolt-1.0.8-setup.exe`

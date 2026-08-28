@@ -1,5 +1,5 @@
 #define MyAppName "Renderbolt"
-#define MyAppVersion "1.0.7"
+#define MyAppVersion "1.0.8"
 #define MyAppPublisher "JMHBM"
 #define MyAppURL "https://github.com/JMHBM/Renderbolt"
 #define MyAppExeName "Renderbolt.exe"
@@ -20,7 +20,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 LicenseFile=..\..\LICENSE
 OutputDir=..\..\public\downloads
-OutputBaseFilename=Renderbolt-1.0.7-setup
+OutputBaseFilename=Renderbolt-1.0.8-setup
 SetupIconFile=renderbolt.ico
 Compression=lzma2
 SolidCompression=yes

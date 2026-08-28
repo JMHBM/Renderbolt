@@ -33,7 +33,7 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
 APP_NAME = "Renderbolt"
-VERSION = "1.0.7"
+VERSION = "1.0.8"
 AUTHOR = "JMHBM"
 LICENSE = "CC BY 4.0"
 

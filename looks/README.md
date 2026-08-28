@@ -19,4 +19,4 @@ python3 desktop/renderbolt render \
   --look looks/night-drive.json
 ```
 
-These ship with 1.0.7.
+These ship with 1.0.8.

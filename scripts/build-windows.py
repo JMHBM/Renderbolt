@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build Renderbolt-1.0.7-setup.exe. Run on Windows 11 (or windows-latest CI)."""
+"""Build Renderbolt-1.0.8-setup.exe. Run on Windows 11 (or windows-latest CI)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WIN = ROOT / "packaging" / "windows"
 DIST = WIN / "dist" / "Renderbolt"
 WORK = WIN / "work"
-VERSION = "1.0.7"
+VERSION = "1.0.8"
 FFMPEG_ZIP = (
     "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/"
     "ffmpeg-master-latest-win64-gpl.zip"

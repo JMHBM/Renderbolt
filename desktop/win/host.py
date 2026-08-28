@@ -15,7 +15,7 @@ import threading
 import traceback
 from pathlib import Path
 
-VERSION = "1.0.7"
+VERSION = "1.0.8"
 APP_NAME = "Renderbolt"
 
 if getattr(sys, "frozen", False):

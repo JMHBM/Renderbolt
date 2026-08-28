@@ -1,4 +1,4 @@
-Renderbolt 1.0.7 for Windows
+Renderbolt 1.0.8 for Windows
 Designed by JMHBM · Creative Commons Attribution 4.0 International
 
 This is a native Windows studio (Edge WebView2), not the Linux Tk app.

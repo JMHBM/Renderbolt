@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.8 — 2026-08-28
+
+Official Windows release. Debian / Ubuntu `.deb` remains supported.
+
+- 2D export uses the same GPU engine as 3D
+- Cover art stays upright in the MP4
+- Live preview shows the vis, titles, progress bar, and clock
+- 2D visualizer sits flush with the bottom of the frame
+- Hardware encode: AMD AMF, NVIDIA NVENC, Intel QSV, CPU fallback
+
 ## 1.0.7 — 2026-08-28
 
 First official **Windows** release. Debian / Ubuntu `.deb` remains supported.

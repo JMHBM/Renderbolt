@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build renderbolt_1.0.7_all.deb without requiring dpkg-deb.
+"""Build renderbolt_1.0.8_all.deb without requiring dpkg-deb.
 
 dpkg does not mkdir -p while unpacking: every parent directory must be a
 real tar member in data.tar.gz, listed before the files it contains.
@@ -19,7 +19,7 @@ from pathlib import Path
 
 ROOT = Path("/workspace")
 STAGE = ROOT / "packaging" / "deb-root"
-OUT = ROOT / "public" / "downloads" / "renderbolt_1.0.7_all.deb"
+OUT = ROOT / "public" / "downloads" / "renderbolt_1.0.8_all.deb"
 
 # Directories that must exist as tar members (relative to /).
 DATA_DIRS = [
@@ -42,7 +42,7 @@ DATA_DIRS = [
 ]
 
 CONTROL = """Package: renderbolt
-Version: 1.0.7
+Version: 1.0.8
 Section: sound
 Priority: optional
 Architecture: all
@@ -89,7 +89,7 @@ METAINFO = """<?xml version="1.0" encoding="UTF-8"?>
     <binary>renderbolt</binary>
   </provides>
   <releases>
-    <release version="1.0.7" date="2026-08-25"/>
+    <release version="1.0.8" date="2026-08-28"/>
   </releases>
   <categories>
     <category>AudioVideo</category>
