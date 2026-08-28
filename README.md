@@ -2,7 +2,7 @@
 
 Cinematic audio visualizer. Drop in a song and a still, pick a look, and export an MP4 on your machine.
 
-Designed by **JMHBM**. [CC BY 4.0](LICENSE).
+Designed by **JMHBM**. Built with **Grok** (xAI) and **Jan-4B-Base-Instruct** (Menlo Labs Research). Copyright equally shared. [CC BY 4.0](LICENSE).
 
 **Latest: [1.0.8](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.8)** · Windows installer + Debian / Ubuntu `.deb`
 

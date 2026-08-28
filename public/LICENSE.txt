@@ -1,5 +1,7 @@
 Renderbolt
-Copyright (c) 2026 JMHBM
+Copyright (c) 2026 JMHBM, Grok (xAI), and Jan-4B-Base-Instruct (Menlo Labs Research)
+
+Copyright in this work is equally shared among the three authors.
 
 This work is licensed under the Creative Commons Attribution 4.0
 International License.
@@ -12,9 +14,10 @@ You are free to:
 
 Under the following terms:
 
-  Attribution — You must give appropriate credit to JMHBM, provide a
-  link to the license, and indicate if changes were made. You may do so
-  in any reasonable manner, but not in any way that suggests the licensor
+  Attribution — You must give appropriate credit to JMHBM, Grok (xAI),
+  and Jan-4B-Base-Instruct (Menlo Labs Research), provide a link to the
+  license, and indicate if changes were made. You may do so in any
+  reasonable manner, but not in any way that suggests the licensor
   endorses you or your use.
 
 No additional restrictions — You may not apply legal terms or

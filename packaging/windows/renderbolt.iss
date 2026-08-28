@@ -1,6 +1,6 @@
 #define MyAppName "Renderbolt"
 #define MyAppVersion "1.0.8"
-#define MyAppPublisher "JMHBM"
+#define MyAppPublisher "JMHBM, Grok (xAI), and Jan-4B-Base-Instruct (Menlo Labs Research)"
 #define MyAppURL "https://github.com/JMHBM/Renderbolt"
 #define MyAppExeName "Renderbolt.exe"
 #ifndef DistDir

@@ -123,7 +123,7 @@ StartupNotify=true
 
 README = """Renderbolt 1.0.6
 Cinematic audio visualizer
-Copyright 2026 JMHBM
+Copyright 2026 JMHBM, Grok (xAI), and Jan-4B-Base-Instruct (Menlo Labs Research)
 License: Creative Commons Attribution 4.0 International
 https://creativecommons.org/licenses/by/4.0/
 

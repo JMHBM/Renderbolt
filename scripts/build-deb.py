@@ -106,7 +106,7 @@ Source: https://github.com/JMHBM/Renderbolt
 
 
 Files: *
-Copyright: 2026 JMHBM
+Copyright: 2026 JMHBM, Grok (xAI), and Jan-4B-Base-Instruct (Menlo Labs Research)
 License: CC-BY-4.0
 
 License: CC-BY-4.0

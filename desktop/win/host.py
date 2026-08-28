@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Renderbolt for Windows — Edge WebView2 studio (not Tk).
 
-Copyright (c) 2026 JMHBM
+Copyright (c) 2026 JMHBM, Grok (xAI), and Jan-4B-Base-Instruct (Menlo Labs Research)
 Licensed under Creative Commons Attribution 4.0 International
 """
 
