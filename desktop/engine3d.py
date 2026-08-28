@@ -74,7 +74,7 @@ uniform float u_dim;
 in vec2 v_uv;
 out vec4 f_color;
 void main() {
-    vec3 c = texture(u_tex, v_uv).rgb;
+    vec3 c = texture(u_tex, vec2(v_uv.x, 1.0 - v_uv.y)).rgb;
     f_color = vec4(c * u_dim, 1.0);
 }
 """
@@ -339,7 +339,7 @@ class VisualEngine3D:
 
         raw = self.fbo.read(components=3, alignment=1)
         frame = np.frombuffer(raw, dtype=np.uint8).reshape(self.h, self.w, 3)
-        return np.flipud(frame).tobytes()
+        return np.ascontiguousarray(np.flipud(frame)).tobytes()
 
     def _render_3d(self, bands, td, style, primary, secondary, pulse, zoom, alpha, t, tilt, place) -> None:
         mvp, eye = self._camera(tilt, t, pulse)
