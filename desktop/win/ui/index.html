@@ -2,384 +2,561 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>Renderbolt</title>
   <style>
     :root {
-      --bg: #0a0a0b;
-      --fg: #f4f0ea;
-      --muted: #9a958c;
-      --card: #121214;
-      --border: rgba(255,255,255,.08);
-      --ice: #c5d0d8;
-      --input: #1a1a1e;
+      --bg: #0a0a0b; --fg: #f4f0ea; --muted: #9a958c; --card: #121214;
+      --card2: #17171a; --border: #2a2a32; --ice: #c5d0d8; --input: #0e0e10;
     }
     * { box-sizing: border-box; }
-    html, body {
-      margin: 0; height: 100%;
-      background: var(--bg); color: var(--fg);
-      font-family: "Segoe UI", system-ui, sans-serif;
-      overflow: hidden;
-    }
-    header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 22px; border-bottom: 1px solid var(--border);
-    }
-    .word { font-weight: 700; letter-spacing: .18em; font-size: 15px; }
-    .meta { color: var(--muted); font-size: 12px; }
-    .app { display: grid; grid-template-columns: 320px 1fr; height: calc(100% - 52px); gap: 18px; padding: 18px; }
-    .side {
-      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
-      overflow: auto; padding: 16px;
-    }
-    .side h2 { margin: 18px 0 8px; font-size: 11px; letter-spacing: .16em; color: var(--muted); font-weight: 700; }
-    .side h2:first-child { margin-top: 0; }
-    .file {
-      background: #1a1a1e; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
-      display: flex; justify-content: space-between; gap: 8px; cursor: pointer; border: 1px solid transparent;
-    }
-    .file:hover { border-color: var(--border); }
-    .file b { display: block; font-size: 12px; }
-    .file span { color: var(--muted); font-size: 11px; word-break: break-all; }
-    label.field { display: block; font-size: 11px; color: var(--muted); margin: 8px 0 4px; }
-    input[type=text], select {
-      width: 100%; background: var(--input); color: var(--fg); border: 1px solid var(--border);
-      border-radius: 8px; padding: 8px 10px; font: inherit;
-    }
-    .row { display: flex; gap: 6px; flex-wrap: wrap; }
-    .chip {
-      flex: 1; min-width: 64px; text-align: center; padding: 8px 6px; border-radius: 8px;
-      background: #1a1a1e; font-size: 12px; cursor: pointer; border: 1px solid transparent;
-    }
-    .chip.on { border-color: var(--ice); color: var(--ice); }
-    .stage-wrap {
-      display: flex; flex-direction: column; min-width: 0; min-height: 0;
-    }
-    .stage {
-      flex: 1; background: #050506; border: 1px solid var(--border); border-radius: 16px;
-      overflow: hidden; position: relative; min-height: 240px;
-    }
-    canvas { width: 100%; height: 100%; display: block; }
-    .transport {
-      margin-top: 14px; background: var(--card); border: 1px solid var(--border);
-      border-radius: 16px; padding: 12px 14px; display: flex; align-items: center; gap: 12px;
-    }
-    .tbtn {
-      width: 42px; height: 42px; border-radius: 10px; background: #2a2c32; color: var(--fg);
-      border: 0; font-size: 16px; cursor: pointer;
-    }
-    .times { flex: 1; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+      font-family: "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+    header { display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 22px; border-bottom: 1px solid var(--border); }
+    .word { font-weight: 700; letter-spacing: .2em; font-size: 16px; cursor: pointer; }
+    .meta { color: var(--muted); font-size: 12px; cursor: pointer; }
+    .app { display: grid; grid-template-columns: 340px 1fr; height: calc(100% - 57px);
+      gap: 18px; padding: 20px; }
+    .side { background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      overflow-y: auto; padding: 16px; }
+    .kicker { font-size: 11px; letter-spacing: .16em; color: var(--muted); font-weight: 700;
+      margin: 18px 0 8px; }
+    .kicker:first-child { margin-top: 0; }
+    .file { background: var(--card2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 10px 12px; margin-bottom: 8px; cursor: pointer; }
+    .file:hover { border-color: #5a6570; }
+    .file small { display: block; color: var(--muted); font-size: 10px; letter-spacing: .08em; }
+    .file b { display: block; font-size: 13px; margin: 2px 0; }
+    .file em { color: var(--muted); font-style: normal; font-size: 11px; }
+    label.field { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+    input[type=text] { width: 100%; background: var(--input); color: var(--fg);
+      border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; font: inherit; }
+    input[type=text]:focus { outline: none; border-color: var(--ice); }
+    .seg { display: flex; background: #1a1a1e; border-radius: 10px; padding: 3px; gap: 3px; }
+    .seg button { flex: 1; border: 0; background: transparent; color: var(--muted);
+      padding: 8px 4px; border-radius: 8px; cursor: pointer; font: 600 12px/1 "Segoe UI"; }
+    .seg button.on { background: #2a2c32; color: var(--fg); }
+    .styles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .scard { border: 1px solid var(--border); border-radius: 10px; padding: 10px;
+      cursor: pointer; background: var(--card); }
+    .scard.on { border-color: var(--ice); }
+    .scard b { display: block; font-size: 13px; }
+    .scard span { color: var(--muted); font-size: 11px; }
+    .btn { display: block; width: 100%; background: #1a1a1e; color: var(--fg); border: 0;
+      border-radius: 8px; padding: 9px; margin-top: 8px; cursor: pointer; font: 12px "Segoe UI"; }
+    .btn:hover { background: #222228; }
+    .starters { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .starters button { background: #1a1a1e; color: var(--fg); border: 0; border-radius: 8px;
+      padding: 9px 6px; cursor: pointer; font-size: 11px; }
+    .adv-btn { width: 100%; text-align: left; background: none; border: 0; color: var(--fg);
+      font: 14px "Segoe UI"; padding: 12px 0 6px; cursor: pointer; }
+    .themes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .theme { border: 1px solid var(--border); border-radius: 8px; padding: 8px 6px;
+      cursor: pointer; font-size: 11px; display: flex; align-items: center; gap: 6px; }
+    .theme.on { border-color: var(--ice); }
+    .sw { width: 14px; height: 14px; border-radius: 4px; flex: none; }
+    .colors { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+    .colors label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 6px; }
+    input[type=color] { -webkit-appearance: none; appearance: none; border: 1px solid var(--border);
+      width: 100%; height: 56px; border-radius: 10px; background: var(--input); cursor: pointer; padding: 0; }
+    input[type=color]::-webkit-color-swatch-wrapper { padding: 4px; }
+    input[type=color]::-webkit-color-swatch { border: none; border-radius: 8px; }
+    .grad { height: 10px; border-radius: 99px; margin: 10px 0 4px; }
+    .slider { margin: 10px 0; }
+    .slider .lab { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+    input[type=range] { width: 100%; accent-color: var(--ice); }
+    .tog { display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0; font-size: 13px; }
+    .tog input { accent-color: var(--ice); width: 18px; height: 18px; }
+    .stage-wrap { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+    .stage { flex: 1; background: #050506; border: 1px solid var(--border); border-radius: 16px;
+      overflow: hidden; min-height: 200px; display: flex; align-items: center; justify-content: center; }
+    canvas { display: block; max-width: 100%; max-height: 100%; }
+    .transport { margin-top: 14px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+    .tbtn { width: 42px; height: 42px; border-radius: 10px; background: #2a2c32; color: var(--fg);
+      border: 0; font-size: 16px; cursor: pointer; }
+    .times { flex: 1; min-width: 0; }
     .bar { height: 6px; background: #2a2c32; border-radius: 99px; overflow: hidden; cursor: pointer; }
     .bar > i { display: block; height: 100%; width: 0; background: var(--fg); }
     .clock { color: var(--muted); font-size: 12px; margin-top: 6px; }
-    .gen {
-      background: var(--fg); color: var(--bg); border: 0; border-radius: 10px;
-      font-weight: 700; padding: 10px 16px; cursor: pointer; white-space: nowrap;
-    }
-    .gen:disabled { opacity: .5; cursor: default; }
+    .gen { background: var(--fg); color: var(--bg); border: 0; border-radius: 10px;
+      font-weight: 700; padding: 10px 16px; cursor: pointer; white-space: nowrap; }
+    .gen:disabled { opacity: .45; cursor: default; }
     .status { color: var(--muted); font-size: 12px; margin-top: 10px; min-height: 16px; }
-    .swatch { width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--border); }
   </style>
 </head>
 <body>
   <header>
-    <div class="word">RENDERBOLT</div>
-    <div class="meta">JMHBM · CC BY 4.0</div>
+    <div class="word" id="aboutL">RENDERBOLT</div>
+    <div class="meta" id="aboutR">JMHBM · CC BY 4.0</div>
   </header>
   <div class="app">
     <aside class="side">
-      <h2>STUDIO</h2>
-      <div class="file" id="pickAudio"><div><b>Audio</b><span id="audioName">Choose MP3, WAV, FLAC…</span></div></div>
-      <div class="file" id="pickImage"><div><b>Background</b><span id="imageName">Choose JPG or PNG</span></div></div>
-      <label class="field">Song</label><input type="text" id="song" />
-      <label class="field">Artist</label><input type="text" id="artist" />
-      <label class="field">Album</label><input type="text" id="album" />
+      <div class="kicker">STUDIO</div>
+      <div class="file" id="pickAudio"><small>AUDIO</small><b id="audioName">Choose a file</b><em>MP3, WAV, FLAC, OGG</em></div>
+      <div class="file" id="pickImage"><small>BACKGROUND</small><b id="imageName">Choose a file</b><em>JPG, PNG, WebP</em></div>
+      <label class="field">Song</label><input type="text" id="song" placeholder="Song title" />
+      <label class="field">Artist</label><input type="text" id="artist" placeholder="Artist name" />
+      <label class="field">Album</label><input type="text" id="album" placeholder="Album name" />
 
-      <h2>MODE</h2>
-      <div class="row" id="modeRow">
-        <div class="chip" data-v="2D">2D</div>
-        <div class="chip on" data-v="3D">3D</div>
-      </div>
-      <h2>FORMAT</h2>
-      <div class="row" id="aspectRow">
-        <div class="chip on" data-v="16:9">16:9</div>
-        <div class="chip" data-v="9:16">9:16</div>
-        <div class="chip" data-v="1:1">1:1</div>
-      </div>
-      <h2>VISUALIZER</h2>
-      <div class="row" id="styleRow">
-        <div class="chip on" data-v="Waveform">Wave</div>
-        <div class="chip" data-v="EQ bars">EQ</div>
-        <div class="chip" data-v="Circular">Ring</div>
-        <div class="chip" data-v="Liquid waves">Liquid</div>
-      </div>
-      <h2>COLOR</h2>
-      <div class="row" id="themeRow"></div>
-      <label class="field">Base</label><input type="text" id="base" value="#156a96" />
-      <label class="field">Tip</label><input type="text" id="tip" value="#b8ecff" />
-      <h2>EXPORT</h2>
-      <div class="row" id="resRow">
-        <div class="chip" data-v="720p">720p</div>
-        <div class="chip on" data-v="1080p">1080p</div>
-        <div class="chip" data-v="4K">4K</div>
-      </div>
-      <div class="row" id="fpsRow" style="margin-top:8px">
-        <div class="chip" data-v="24">24</div>
-        <div class="chip on" data-v="30">30</div>
-        <div class="chip" data-v="60">60</div>
+      <div class="kicker">MODE</div>
+      <div class="seg" id="modeRow"><button class="on" data-v="3D">3D</button><button data-v="2D">2D</button></div>
+      <div class="kicker">FORMAT</div>
+      <div class="seg" id="aspectRow"><button class="on" data-v="16:9">16:9</button><button data-v="9:16">9:16</button><button data-v="1:1">1:1</button></div>
+
+      <div class="kicker">VISUALIZER</div>
+      <div class="styles" id="styleGrid"></div>
+      <button class="btn" id="shuffle" type="button">Shuffle look</button>
+
+      <div class="kicker">STARTER LOOKS</div>
+      <div class="starters" id="starters"></div>
+
+      <button class="adv-btn" id="advBtn" type="button">Advanced ▾</button>
+      <div id="adv" hidden>
+        <div class="kicker">COLOR PRESETS</div>
+        <div class="themes" id="themes"></div>
+        <div class="kicker">GRADIENT · BASE → TIPS</div>
+        <div class="grad" id="grad"></div>
+        <div class="colors">
+          <div><label>Base</label><input type="color" id="base" value="#156a96" /></div>
+          <div><label>Tips</label><input type="color" id="tip" value="#b8ecff" /></div>
+        </div>
+        <div class="slider"><div class="lab"><span>Pulse hue</span><span id="pulseHueV">0°</span></div>
+          <input type="range" id="pulseHue" min="0" max="180" value="0" /></div>
+
+        <div class="kicker">BEAT BOUNCE</div>
+        <div class="seg" id="bounceRow"><button data-v="Soft">Soft</button><button class="on" data-v="Medium">Medium</button><button data-v="Hard">Hard</button></div>
+        <div class="slider"><div class="lab"><span>Camera tilt</span><span id="tiltV">42°</span></div>
+          <input type="range" id="tilt" min="22" max="62" value="42" /></div>
+        <div class="slider"><div class="lab"><span>Glass</span><span id="alphaV">78%</span></div>
+          <input type="range" id="alpha" min="25" max="100" value="78" /></div>
+
+        <div class="kicker">PLACEMENT</div>
+        <div class="slider"><div class="lab"><span>X axis</span><span id="visXV">0.00</span></div>
+          <input type="range" id="visX" min="-100" max="100" value="0" /></div>
+        <div class="slider"><div class="lab"><span>Y axis</span><span id="visYV">0.00</span></div>
+          <input type="range" id="visY" min="-100" max="100" value="0" /></div>
+        <div class="slider"><div class="lab"><span>Rotation</span><span id="visRotV">0°</span></div>
+          <input type="range" id="visRot" min="0" max="360" value="0" /></div>
+        <div class="slider"><div class="lab"><span>Width</span><span id="visSxV">1.00×</span></div>
+          <input type="range" id="visSx" min="35" max="220" value="100" /></div>
+        <div class="slider"><div class="lab"><span>Height</span><span id="visSyV">1.00×</span></div>
+          <input type="range" id="visSy" min="35" max="220" value="100" /></div>
+        <label class="tog"><span>Mirror</span><input type="checkbox" id="mirror" /></label>
+        <button class="btn" id="resetPlace" type="button">Reset placement</button>
+
+        <label class="tog"><span>Show titles on video</span><input type="checkbox" id="showTitles" checked /></label>
+        <div class="kicker">TITLE POSITION</div>
+        <div class="seg" id="titlePosRow"><button class="on" data-v="Bottom">Bottom</button><button data-v="Top">Top</button></div>
+        <label class="tog"><span>Show progress bar</span><input type="checkbox" id="showProgress" checked /></label>
+        <label class="tog"><span>Loop preview</span><input type="checkbox" id="loopPreview" checked /></label>
+
+        <div class="slider"><div class="lab"><span>Beat sensitivity</span><span id="sensV">1.00×</span></div>
+          <input type="range" id="sens" min="40" max="220" value="100" /></div>
+        <div class="slider"><div class="lab"><span>Glow</span><span id="glowV">40%</span></div>
+          <input type="range" id="glow" min="0" max="100" value="40" /></div>
+        <div class="slider"><div class="lab"><span>Vignette</span><span id="vigV">55%</span></div>
+          <input type="range" id="vignette" min="0" max="100" value="55" /></div>
+        <div class="slider"><div class="lab"><span>Film grain</span><span id="grainV">10%</span></div>
+          <input type="range" id="grain" min="0" max="45" value="10" /></div>
+        <div class="slider"><div class="lab"><span>Title size</span><span id="titleScaleV">1.00×</span></div>
+          <input type="range" id="titleScale" min="60" max="180" value="100" /></div>
+
+        <div class="kicker">EXPORT</div>
+        <div class="seg" id="resRow"><button data-v="720p">720p</button><button class="on" data-v="1080p">1080p</button><button data-v="4K">4K</button></div>
+        <div class="kicker">FRAME RATE</div>
+        <div class="seg" id="fpsRow"><button data-v="24">24</button><button class="on" data-v="30">30</button><button data-v="60">60</button></div>
+        <div class="slider"><div class="lab"><span>Fade in</span><span id="fadeInV">0.6s</span></div>
+          <input type="range" id="fadeIn" min="0" max="40" value="6" /></div>
+        <div class="slider"><div class="lab"><span>Fade out</span><span id="fadeOutV">1.2s</span></div>
+          <input type="range" id="fadeOut" min="0" max="60" value="12" /></div>
+        <button class="btn" id="pickLogo" type="button">Watermark logo</button>
+        <button class="btn" id="saveLook" type="button">Save look…</button>
+        <button class="btn" id="loadLook" type="button">Load look…</button>
+        <button class="btn" id="saveFrame" type="button">Save frame…</button>
       </div>
     </aside>
     <section class="stage-wrap">
       <div class="stage"><canvas id="cv"></canvas></div>
       <div class="transport">
         <button class="tbtn" id="play" type="button">▶</button>
+        <button class="tbtn" id="rew" type="button">⏮</button>
         <div class="times">
           <div class="bar" id="seek"><i id="fill"></i></div>
           <div class="clock" id="clock">0:00 / 0:00</div>
         </div>
         <button class="gen" id="gen" type="button">Generate MP4</button>
       </div>
-      <div class="status" id="status">WebView studio · the picture is the preview · Generate writes the MP4</div>
+      <div class="status" id="status">Space play · G generate · R shuffle · S frame</div>
     </section>
   </div>
   <script>
     const THEMES = {
-      Ice: ["#156a96", "#b8ecff"], Ember: ["#8a2208", "#ffb070"], Forest: ["#0d5c38", "#9ef0c0"],
-      Midnight: ["#1e2a8a", "#b8c4ff"], Mono: ["#2a2a2c", "#f0ece4"], Rose: ["#8a1848", "#ff9ec0"],
-      Violet: ["#4a148c", "#e0b0ff"], Gold: ["#8a5a00", "#ffe08a"], Cyan: ["#046060", "#7dfff0"],
-      Crimson: ["#7a1020", "#ff6a7a"], Ocean: ["#023e6b", "#5ad0ff"], Sunset: ["#c43c08", "#ffd0a0"],
+      Ice:["#156a96","#b8ecff"], Ember:["#8a2208","#ffb070"], Forest:["#0d5c38","#9ef0c0"],
+      Midnight:["#1e2a8a","#b8c4ff"], Mono:["#2a2a2c","#f0ece4"], Rose:["#8a1848","#ff9ec0"],
+      Violet:["#4a148c","#e0b0ff"], Gold:["#8a5a00","#ffe08a"], Cyan:["#046060","#7dfff0"],
+      Crimson:["#7a1020","#ff6a7a"], Ocean:["#023e6b","#5ad0ff"], Sunset:["#c43c08","#ffd0a0"],
+    };
+    const STYLES = [
+      ["Waveform","Waveform","Amplitude ribbon"],
+      ["EQ bars","EQ bars","Log-spaced spectrum"],
+      ["Circular","Circular","Radial ring"],
+      ["Liquid waves","Liquid","Layered fluid"],
+    ];
+    const STARTERS = {
+      "Night Drive": {mode:"3D", style:"Waveform", theme:"Midnight", bounce:"Medium", tilt:46, alpha:0.72, place:{x:0,y:-0.18,rot:0,sx:1.15,sy:0.9,mirror:false}, glow:0.58, vignette:0.68, grain:0.14, pulse_hue:36, aspect:"16:9"},
+      "Live Session": {mode:"2D", style:"EQ bars", theme:"Ember", bounce:"Hard", place:{x:0,y:0.22,rot:0,sx:1.05,sy:0.85,mirror:false}, glow:0.32, vignette:0.4, grain:0.08, title_pos:"Bottom", aspect:"16:9"},
+      "Vinyl": {mode:"3D", style:"Circular", theme:"Gold", bounce:"Soft", tilt:50, alpha:0.8, place:{x:0,y:0.05,rot:0,sx:0.95,sy:0.95,mirror:false}, glow:0.45, vignette:0.72, grain:0.22, aspect:"1:1"},
+      "After Hours": {mode:"3D", style:"Liquid waves", theme:"Violet", bounce:"Medium", tilt:38, alpha:0.66, place:{x:0,y:0.12,rot:0,sx:1.2,sy:1.05,mirror:false}, glow:0.5, vignette:0.6, grain:0.1, pulse_hue:24, aspect:"16:9"},
+      "Neon Rain": {mode:"3D", style:"EQ bars", theme:"Cyan", bounce:"Hard", tilt:44, place:{x:0,y:0.08,rot:0,sx:1.1,sy:1.25,mirror:false}, glow:0.62, vignette:0.5, grain:0.06, pulse_hue:80, aspect:"9:16"},
+      "Broadcast": {mode:"2D", style:"Waveform", theme:"Mono", bounce:"Soft", place:{x:0,y:0.28,rot:0,sx:1.3,sy:0.7,mirror:false}, glow:0.18, vignette:0.35, grain:0.05, aspect:"16:9"},
     };
     const S = {
-      audio: "", cover: "", mode: "3D", style: "Waveform", theme: "Ice",
-      aspect: "16:9", res: "1080p", fps: "30",
+      audio:"", cover:"", logo:"", mode:"3D", style:"Waveform", theme:"Ice",
+      aspect:"16:9", bounce:"Medium", titlePos:"Bottom", res:"1080p", fps:"30",
     };
     const cv = document.getElementById("cv");
     const ctx = cv.getContext("2d");
     const coverImg = new Image();
-    coverImg.crossOrigin = "anonymous";
-    let audioEl = null, playing = false, duration = 0, t0 = 0;
+    let audioEl = null, duration = 0;
 
-    const themeRow = document.getElementById("themeRow");
-    Object.keys(THEMES).forEach((name) => {
-      const el = document.createElement("div");
-      el.className = "chip" + (name === "Ice" ? " on" : "");
-      el.dataset.v = name;
-      el.textContent = name;
-      themeRow.appendChild(el);
+    function $(id){ return document.getElementById(id); }
+    function basename(p){ return (p||"").split(/[/\\]/).pop(); }
+    function waitApi(){
+      return new Promise((res)=>{
+        const t=()=> (window.pywebview&&window.pywebview.api)?res(window.pywebview.api):setTimeout(t,40);
+        t();
+      });
+    }
+    function hex(h){ h=(h||"#156a96").replace("#",""); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+    function mix(a,b,t){ return a.map((v,i)=>Math.round(v+(b[i]-v)*t)); }
+    function rgba(c,a){ return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
+    function fmt(s){ s=Math.max(0,s||0); return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`; }
+
+    function setSeg(id, val){
+      [...$(id).querySelectorAll("button")].forEach(b=>b.classList.toggle("on", b.dataset.v===val));
+    }
+    function onSeg(id, fn){
+      $(id).addEventListener("click", e=>{
+        const b=e.target.closest("button"); if(!b) return;
+        fn(b.dataset.v); setSeg(id, b.dataset.v); draw();
+      });
+    }
+
+    STYLES.forEach(([key,title,blurb])=>{
+      const el=document.createElement("div");
+      el.className="scard"+(key==="Waveform"?" on":"");
+      el.dataset.v=key;
+      el.innerHTML=`<b>${title}</b><span>${blurb}</span>`;
+      el.onclick=()=>{ S.style=key; [...styleGrid.children].forEach(x=>x.classList.toggle("on",x===el)); draw(); };
+      styleGrid.appendChild(el);
+    });
+    Object.keys(STARTERS).forEach(name=>{
+      const b=document.createElement("button"); b.type="button"; b.textContent=name;
+      b.onclick=()=>{ applyLook(STARTERS[name]); $("status").textContent="Look · "+name; };
+      starters.appendChild(b);
+    });
+    Object.entries(THEMES).forEach(([name,pair])=>{
+      const el=document.createElement("div");
+      el.className="theme"+(name==="Ice"?" on":"");
+      el.innerHTML=`<i class="sw" style="background:${pair[1]}"></i>${name}`;
+      el.onclick=()=>{
+        S.theme=name; $("base").value=pair[0]; $("tip").value=pair[1];
+        [...themes.children].forEach(x=>x.classList.toggle("on",x===el));
+        paintGrad(); draw();
+      };
+      themes.appendChild(el);
     });
 
-    function chips(id, key) {
-      document.getElementById(id).addEventListener("click", (e) => {
-        const c = e.target.closest(".chip");
-        if (!c) return;
-        [...e.currentTarget.children].forEach((x) => x.classList.toggle("on", x === c));
-        S[key] = c.dataset.v;
-        if (key === "theme") {
-          document.getElementById("base").value = THEMES[S.theme][0];
-          document.getElementById("tip").value = THEMES[S.theme][1];
-        }
-        draw();
-      });
-    }
-    chips("modeRow", "mode"); chips("aspectRow", "aspect");
-    chips("styleRow", "style"); chips("themeRow", "theme");
-    chips("resRow", "res"); chips("fpsRow", "fps");
+    onSeg("modeRow", v=>S.mode=v);
+    onSeg("aspectRow", v=>S.aspect=v);
+    onSeg("bounceRow", v=>S.bounce=v);
+    onSeg("titlePosRow", v=>S.titlePos=v);
+    onSeg("resRow", v=>S.res=v);
+    onSeg("fpsRow", v=>S.fps=v);
 
-    function basename(p) { return (p || "").split(/[/\\]/).pop(); }
-    function waitApi() {
-      return new Promise((res) => {
-        const tick = () => (window.pywebview && window.pywebview.api) ? res(window.pywebview.api) : setTimeout(tick, 50);
-        tick();
-      });
+    function bindSlider(id, label, fmtFn){
+      const el=$(id);
+      const out=$(id+"V") || $(label);
+      const sync=()=>{ if($(id+"V")) $(id+"V").textContent=fmtFn(+el.value); draw(); };
+      el.addEventListener("input", sync); sync();
     }
-    async function loadCover(path) {
-      const api = await waitApi();
-      const url = await api.file_data_url(path);
-      if (url) { coverImg.src = url; document.getElementById("imageName").textContent = basename(path); }
+    bindSlider("pulseHue", null, v=>v+"°");
+    bindSlider("tilt", null, v=>v+"°");
+    bindSlider("alpha", null, v=>v+"%");
+    bindSlider("visX", null, v=>(v/100).toFixed(2));
+    bindSlider("visY", null, v=>(v/100).toFixed(2));
+    bindSlider("visRot", null, v=>v+"°");
+    bindSlider("visSx", null, v=>(v/100).toFixed(2)+"×");
+    bindSlider("visSy", null, v=>(v/100).toFixed(2)+"×");
+    bindSlider("sens", null, v=>(v/100).toFixed(2)+"×");
+    bindSlider("glow", null, v=>v+"%");
+    bindSlider("vignette", null, v=>v+"%");
+    bindSlider("grain", null, v=>v+"%");
+    bindSlider("titleScale", null, v=>(v/100).toFixed(2)+"×");
+    bindSlider("fadeIn", null, v=>(v/10).toFixed(1)+"s");
+    bindSlider("fadeOut", null, v=>(v/10).toFixed(1)+"s");
+
+    function paintGrad(){
+      $("grad").style.background=`linear-gradient(90deg, ${$("base").value}, ${$("tip").value})`;
     }
-    async function loadAudio(path) {
-      const api = await waitApi();
-      const url = await api.file_data_url(path, 40_000_000);
-      if (!url) { document.getElementById("status").textContent = "Audio is too large to preview; Generate will still work."; return; }
-      if (audioEl) { audioEl.pause(); audioEl.src = ""; }
-      audioEl = new Audio(url);
-      audioEl.addEventListener("loadedmetadata", () => {
-        duration = audioEl.duration || 0;
-        clock();
-      });
-      document.getElementById("audioName").textContent = basename(path);
-    }
-    document.getElementById("pickAudio").onclick = async () => {
-      const p = await (await waitApi()).pick_audio();
-      if (p) { S.audio = p; loadAudio(p); }
+    $("base").oninput=$("tip").oninput=()=>{ paintGrad(); draw(); };
+    $("song").oninput=$("artist").oninput=$("album").oninput=draw;
+    ["showTitles","showProgress","mirror"].forEach(id=>$(id).onchange=draw);
+    $("resetPlace").onclick=()=>{
+      visX.value=0; visY.value=0; visRot.value=0; visSx.value=100; visSy.value=100; mirror.checked=false;
+      visXV.textContent="0.00"; visYV.textContent="0.00"; visRotV.textContent="0°";
+      visSxV.textContent="1.00×"; visSyV.textContent="1.00×"; draw();
     };
-    document.getElementById("pickImage").onclick = async () => {
-      const p = await (await waitApi()).pick_image();
-      if (p) { S.cover = p; loadCover(p); }
+    $("advBtn").onclick=()=>{
+      const box=$("adv"); const open=box.hidden; box.hidden=!open;
+      $("advBtn").textContent=open?"Advanced ▴":"Advanced ▾";
+      if(open) box.scrollIntoView({block:"nearest"});
     };
-    coverImg.onload = draw;
 
-    function hex(h) {
-      h = (h || "#156a96").replace("#", "");
-      return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+    function look(){
+      return {
+        mode:S.mode, style:S.style, theme:S.theme,
+        base:$("base").value, tip:$("tip").value, bounce:S.bounce,
+        tilt:+tilt.value, alpha:+alpha.value/100,
+        place:{ x:+visX.value/100, y:+visY.value/100, rot:+visRot.value,
+          sx:+visSx.value/100, sy:+visSy.value/100, mirror:mirror.checked },
+        sens:+sens.value/100, glow:+glow.value/100, vignette:+vignette.value/100,
+        grain:+grain.value/100, title_scale:+titleScale.value/100,
+        show_titles:showTitles.checked, show_progress:showProgress.checked,
+        aspect:S.aspect, res:S.res, fps:S.fps,
+        fade_in:+fadeIn.value/10, fade_out:+fadeOut.value/10,
+        title_pos:S.titlePos, pulse_hue:+pulseHue.value,
+      };
     }
-    function mix(a, b, t) {
-      return a.map((v, i) => Math.round(v + (b[i] - v) * t));
-    }
-    function resize() {
-      const r = cv.parentElement.getBoundingClientRect();
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      cv.width = Math.max(320, r.width * dpr);
-      cv.height = Math.max(180, r.height * dpr);
-      draw();
-    }
-    window.addEventListener("resize", resize);
-
-    function draw() {
-      const w = cv.width, h = cv.height;
-      ctx.fillStyle = "#0a0a0b";
-      ctx.fillRect(0, 0, w, h);
-      if (coverImg.naturalWidth) {
-        const s = Math.max(w / coverImg.naturalWidth, h / coverImg.naturalHeight);
-        const nw = coverImg.naturalWidth * s, nh = coverImg.naturalHeight * s;
-        ctx.drawImage(coverImg, (w - nw) / 2, (h - nh) / 2, nw, nh);
+    function applyLook(d){
+      if(d.mode){ S.mode=d.mode; setSeg("modeRow", S.mode); }
+      if(d.style){ S.style=d.style; [...styleGrid.children].forEach(x=>x.classList.toggle("on", x.dataset.v===S.style)); }
+      if(d.theme && THEMES[d.theme]){
+        S.theme=d.theme; $("base").value=d.base||THEMES[d.theme][0]; $("tip").value=d.tip||THEMES[d.theme][1];
+        [...themes.children].forEach((x,i)=>x.classList.toggle("on", Object.keys(THEMES)[i]===d.theme));
+      } else {
+        if(d.base) $("base").value=d.base;
+        if(d.tip) $("tip").value=d.tip;
       }
-      ctx.fillStyle = "rgba(10,10,11,.35)";
-      ctx.fillRect(0, 0, w, h);
-      const base = hex(document.getElementById("base").value);
-      const tip = hex(document.getElementById("tip").value);
-      const t = audioEl && !audioEl.paused ? audioEl.currentTime : t0;
+      if(d.bounce){ S.bounce=d.bounce; setSeg("bounceRow", S.bounce); }
+      if(d.aspect){ S.aspect=d.aspect; setSeg("aspectRow", S.aspect); }
+      if(d.res){ S.res=d.res; setSeg("resRow", S.res); }
+      if(d.fps){ S.fps=String(d.fps); setSeg("fpsRow", S.fps); }
+      if(d.title_pos){ S.titlePos=d.title_pos; setSeg("titlePosRow", S.titlePos); }
+      if(d.tilt!=null) tilt.value=d.tilt;
+      if(d.alpha!=null) alpha.value=Math.round(d.alpha*100);
+      if(d.glow!=null) glow.value=Math.round(d.glow*100);
+      if(d.vignette!=null) vignette.value=Math.round(d.vignette*100);
+      if(d.grain!=null) grain.value=Math.round(d.grain*100);
+      if(d.pulse_hue!=null) pulseHue.value=d.pulse_hue;
+      if(d.sens!=null) sens.value=Math.round(d.sens*100);
+      if(d.title_scale!=null) titleScale.value=Math.round(d.title_scale*100);
+      if(d.fade_in!=null) fadeIn.value=Math.round(d.fade_in*10);
+      if(d.fade_out!=null) fadeOut.value=Math.round(d.fade_out*10);
+      if(d.show_titles!=null) showTitles.checked=!!d.show_titles;
+      if(d.show_progress!=null) showProgress.checked=!!d.show_progress;
+      const p=d.place||{};
+      visX.value=Math.round((p.x||0)*100); visY.value=Math.round((p.y||0)*100);
+      visRot.value=p.rot||0; visSx.value=Math.round((p.sx||1)*100); visSy.value=Math.round((p.sy||1)*100);
+      mirror.checked=!!p.mirror;
+      ["pulseHue","tilt","alpha","visX","visY","visRot","visSx","visSy","sens","glow","vignette","grain","titleScale","fadeIn","fadeOut"]
+        .forEach(id=>$(id).dispatchEvent(new Event("input")));
+      paintGrad(); draw();
+    }
+    $("shuffle").onclick=()=>{
+      const styles=STYLES.map(s=>s[0]), themes=Object.keys(THEMES), bounce=["Soft","Medium","Hard"], aspects=["16:9","16:9","9:16","1:1"];
+      applyLook({
+        mode: Math.random()>.5?"3D":"2D",
+        style: styles[Math.floor(Math.random()*styles.length)],
+        theme: themes[Math.floor(Math.random()*themes.length)],
+        bounce: bounce[Math.floor(Math.random()*3)],
+        place:{ x:(Math.random()-.5)*.5, y:(Math.random()-.5)*.4, rot:[0,0,0,12,348,180][Math.floor(Math.random()*6)],
+          sx:.85+Math.random()*.4, sy:.85+Math.random()*.35, mirror:false },
+        glow:.2+Math.random()*.5, grain:.04+Math.random()*.14,
+        pulse_hue:[0,0,24,48,90][Math.floor(Math.random()*5)],
+        aspect: aspects[Math.floor(Math.random()*aspects.length)],
+      });
+      $("status").textContent="Shuffled look";
+    };
+
+    function aspectWH(){
+      const box=$("cv").parentElement.getBoundingClientRect();
+      const ar={ "16:9":[16,9], "9:16":[9,16], "1:1":[1,1] }[S.aspect]||[16,9];
+      let w=box.width, h=box.height;
+      if(w/h > ar[0]/ar[1]) w=h*ar[0]/ar[1]; else h=w*ar[1]/ar[0];
+      const dpr=Math.min(2, window.devicePixelRatio||1);
+      return [Math.max(160, Math.round(w*dpr)), Math.max(160, Math.round(h*dpr))];
+    }
+    function draw(){
+      const [w,h]=aspectWH();
+      if(cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; }
+      ctx.fillStyle="#0a0a0b"; ctx.fillRect(0,0,w,h);
+      if(coverImg.naturalWidth){
+        const s=Math.max(w/coverImg.naturalWidth, h/coverImg.naturalHeight);
+        const nw=coverImg.naturalWidth*s, nh=coverImg.naturalHeight*s;
+        ctx.drawImage(coverImg,(w-nw)/2,(h-nh)/2,nw,nh);
+      }
+      const vig=+vignette.value/100;
+      if(vig>0.01){
+        const g=ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*0.2,w/2,h/2,Math.max(w,h)*0.7);
+        g.addColorStop(0,"rgba(10,10,11,0)"); g.addColorStop(1,`rgba(10,10,11,${0.35+vig*0.5})`);
+        ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      } else {
+        ctx.fillStyle="rgba(10,10,11,.28)"; ctx.fillRect(0,0,w,h);
+      }
+      const t=audioEl && !audioEl.paused ? audioEl.currentTime : (audioEl?audioEl.currentTime:0);
+      const base=hex($("base").value), tip=hex($("tip").value);
+      const a=+alpha.value/100;
       ctx.save();
-      if (S.style === "EQ bars") {
-        const n = 32;
-        for (let i = 0; i < n; i++) {
-          const v = 0.25 + 0.55 * Math.abs(Math.sin(t * 2 + i * 0.35));
-          const bw = (w * 0.8) / n, x = w * 0.1 + i * bw;
-          const bh = h * 0.35 * v;
-          const col = mix(base, tip, v);
-          ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},.9)`;
-          ctx.fillRect(x + 2, h * 0.72 - bh, bw - 4, bh);
+      ctx.translate(w*(0.5+(+visX.value/100)*0.45), h*(0.58-(+visY.value/100)*0.4));
+      ctx.rotate((+visRot.value)*Math.PI/180);
+      ctx.scale((+visSx.value/100)*(mirror.checked?-1:1), +visSy.value/100);
+      ctx.translate(-w*0.5, -h*0.58);
+      if(S.style==="EQ bars"){
+        const n=32;
+        for(let i=0;i<n;i++){
+          const v=0.22+0.6*Math.abs(Math.sin(t*2+i*0.32));
+          const bw=(w*0.82)/n, x=w*0.09+i*bw, bh=h*0.36*v;
+          ctx.fillStyle=rgba(mix(base,tip,v), a);
+          ctx.fillRect(x+2, h*0.74-bh, bw-4, bh);
         }
-      } else if (S.style === "Circular") {
-        const cx = w/2, cy = h*0.48, n = 48;
-        for (let i = 0; i < n; i++) {
-          const v = 0.3 + 0.5 * Math.abs(Math.sin(t * 3 + i * 0.2));
-          const a = (i / n) * Math.PI * 2 - Math.PI/2;
-          const r0 = Math.min(w,h) * 0.16, r1 = r0 + v * Math.min(w,h) * 0.18;
-          const col = mix(base, tip, v);
-          ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},.95)`;
-          ctx.lineWidth = 3;
+      } else if(S.style==="Circular"){
+        const cx=w/2, cy=h*0.48, n=48;
+        for(let i=0;i<n;i++){
+          const v=0.28+0.55*Math.abs(Math.sin(t*3+i*0.2));
+          const ang=i/n*Math.PI*2-Math.PI/2;
+          const r0=Math.min(w,h)*0.16, r1=r0+v*Math.min(w,h)*0.18;
+          ctx.strokeStyle=rgba(mix(base,tip,v), a); ctx.lineWidth=3;
           ctx.beginPath();
-          ctx.moveTo(cx + Math.cos(a)*r0, cy + Math.sin(a)*r0);
-          ctx.lineTo(cx + Math.cos(a)*r1, cy + Math.sin(a)*r1);
-          ctx.stroke();
+          ctx.moveTo(cx+Math.cos(ang)*r0, cy+Math.sin(ang)*r0);
+          ctx.lineTo(cx+Math.cos(ang)*r1, cy+Math.sin(ang)*r1); ctx.stroke();
         }
-      } else if (S.style === "Liquid waves") {
-        ctx.beginPath();
-        ctx.moveTo(0, h);
-        for (let i = 0; i <= 40; i++) {
-          const x = (i/40)*w;
-          const y = h*0.62 - Math.sin(i/40*Math.PI*3 + t)*h*0.06 - Math.abs(Math.sin(t+i))*h*0.08;
-          ctx.lineTo(x, y);
+      } else if(S.style==="Liquid waves"){
+        ctx.beginPath(); ctx.moveTo(0,h);
+        for(let i=0;i<=40;i++){
+          const x=(i/40)*w;
+          const y=h*0.62-Math.sin(i/40*Math.PI*3+t)*h*0.06-Math.abs(Math.sin(t+i))*h*0.08;
+          ctx.lineTo(x,y);
         }
-        ctx.lineTo(w, h); ctx.closePath();
-        ctx.fillStyle = `rgba(${tip[0]},${tip[1]},${tip[2]},.4)`;
-        ctx.fill();
+        ctx.lineTo(w,h); ctx.closePath(); ctx.fillStyle=rgba(tip,0.4*a); ctx.fill();
       } else {
         ctx.beginPath();
-        for (let i = 0; i < 64; i++) {
-          const x = w*0.08 + (i/63)*w*0.84;
-          const y = h*0.6 - Math.sin(t*4 + i*0.25)*h*0.12;
-          i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+        for(let i=0;i<64;i++){
+          const x=w*0.08+(i/63)*w*0.84;
+          const y=h*0.6-Math.sin(t*4+i*0.25)*h*0.12;
+          i?ctx.lineTo(x,y):ctx.moveTo(x,y);
         }
-        ctx.strokeStyle = `rgba(${tip[0]},${tip[1]},${tip[2]},.95)`;
-        ctx.lineWidth = 3; ctx.stroke();
+        ctx.strokeStyle=rgba(tip,a); ctx.lineWidth=3; ctx.stroke();
       }
       ctx.restore();
-      const song = document.getElementById("song").value.trim();
-      const artist = document.getElementById("artist").value.trim();
-      const album = document.getElementById("album").value.trim();
-      ctx.fillStyle = "#f4f0ea";
-      ctx.font = `700 ${Math.max(18, h*0.045)}px Segoe UI`;
-      if (song) ctx.fillText(song.toUpperCase().slice(0, 42), w*0.06, h*0.88);
-      ctx.font = `${Math.max(12, h*0.022)}px Segoe UI`;
-      ctx.fillStyle = "rgba(244,240,234,.6)";
-      const meta = [artist, album].filter(Boolean).join("  ·  ").toUpperCase();
-      if (meta) ctx.fillText(meta.slice(0, 56), w*0.06, h*0.88 + h*0.04);
-      const p = duration > 0 ? (t / duration) : 0;
-      const x0 = w*0.06, yb = h - h*0.04, tw = w*0.88;
-      ctx.fillStyle = "rgba(244,240,234,.2)";
-      ctx.fillRect(x0, yb, tw, 4);
-      ctx.fillStyle = `rgb(${base[0]},${base[1]},${base[2]})`;
-      ctx.fillRect(x0, yb, tw * p, 4);
+      if(showTitles.checked){
+        const song=$("song").value.trim(), artist=$("artist").value.trim(), album=$("album").value.trim();
+        const scale=+titleScale.value/100;
+        const top=S.titlePos==="Top";
+        const ty=top?h*0.1:h*0.86;
+        ctx.fillStyle="#f4f0ea"; ctx.font=`700 ${Math.max(16,h*0.042*scale)}px Segoe UI`;
+        if(song) ctx.fillText(song.toUpperCase().slice(0,42), w*0.06, ty);
+        ctx.font=`${Math.max(11,h*0.02*scale)}px Segoe UI`; ctx.fillStyle="rgba(244,240,234,.6)";
+        const meta=[artist,album].filter(Boolean).join("  ·  ").toUpperCase();
+        if(meta) ctx.fillText(meta.slice(0,56), w*0.06, ty+h*0.04*scale);
+      }
+      if(showProgress.checked){
+        const p=duration>0?(t/duration):0;
+        const x0=w*0.06, yb=h-h*0.045, tw=w*0.88;
+        ctx.fillStyle="rgba(244,240,234,.2)"; ctx.fillRect(x0,yb,tw,4);
+        ctx.fillStyle=rgba(hex($("base").value),1); ctx.fillRect(x0,yb,tw*p,4);
+      }
     }
+    function clock(){
+      const t=audioEl?audioEl.currentTime:0, d=audioEl?(audioEl.duration||duration):duration;
+      $("clock").textContent=`${fmt(t)} / ${fmt(d)}`;
+      $("fill").style.width=d?`${100*t/d}%`:"0%";
+    }
+    $("play").onclick=()=>{
+      if(!audioEl){ $("status").textContent="Choose an audio file to preview playback."; return; }
+      if(audioEl.paused){ audioEl.play(); $("play").textContent="⏸"; }
+      else { audioEl.pause(); $("play").textContent="▶"; }
+    };
+    $("rew").onclick=()=>{ if(audioEl){ audioEl.currentTime=0; clock(); draw(); } };
+    $("seek").onclick=e=>{
+      if(!audioEl||!duration) return;
+      const r=e.currentTarget.getBoundingClientRect();
+      audioEl.currentTime=((e.clientX-r.left)/r.width)*duration; clock(); draw();
+    };
+    function loop(){ if(audioEl && !audioEl.paused){ if(audioEl.ended){ if(loopPreview.checked){ audioEl.currentTime=0; audioEl.play(); } else $("play").textContent="▶"; } clock(); draw(); } requestAnimationFrame(loop); }
 
-    function fmt(s) {
-      s = Math.max(0, s||0);
-      return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`;
-    }
-    function clock() {
-      const t = audioEl ? audioEl.currentTime : 0;
-      const d = audioEl ? (audioEl.duration || duration) : duration;
-      document.getElementById("clock").textContent = `${fmt(t)} / ${fmt(d)}`;
-      document.getElementById("fill").style.width = d ? `${100*t/d}%` : "0%";
-    }
-    document.getElementById("play").onclick = () => {
-      if (!audioEl) { document.getElementById("status").textContent = "Choose an audio file to preview playback."; return; }
-      if (audioEl.paused) { audioEl.play(); document.getElementById("play").textContent = "⏸"; }
-      else { audioEl.pause(); document.getElementById("play").textContent = "▶"; }
+    $("pickAudio").onclick=async()=>{
+      const p=await (await waitApi()).pick_audio();
+      if(!p) return; S.audio=p; $("audioName").textContent=basename(p);
+      const url=await (await waitApi()).file_data_url(p, 40_000_000);
+      if(!url){ $("status").textContent="Audio too large to preview; Generate will still work."; return; }
+      if(audioEl){ audioEl.pause(); }
+      audioEl=new Audio(url);
+      audioEl.addEventListener("loadedmetadata",()=>{ duration=audioEl.duration||0; clock(); });
     };
-    function loop() {
-      if (audioEl && !audioEl.paused) { clock(); draw(); }
-      requestAnimationFrame(loop);
-    }
-    document.getElementById("song").oninput = draw;
-    document.getElementById("artist").oninput = draw;
-    document.getElementById("album").oninput = draw;
-    document.getElementById("base").oninput = draw;
-    document.getElementById("tip").oninput = draw;
-
-    window.__rbProgress = (msg, pct) => {
-      document.getElementById("status").textContent = msg + (pct ? `  ${pct.toFixed(0)}%` : "");
-      if (pct) document.getElementById("fill").style.width = pct + "%";
+    $("pickImage").onclick=async()=>{
+      const p=await (await waitApi()).pick_image();
+      if(!p) return; S.cover=p; $("imageName").textContent=basename(p);
+      const url=await (await waitApi()).file_data_url(p);
+      if(url) coverImg.src=url;
     };
-    window.__rbDone = (dest, label) => {
-      document.getElementById("gen").disabled = false;
-      document.getElementById("status").textContent = `Saved ${basename(dest)} · ${label}`;
-      alert("Saved " + dest + "\nEncoder: " + label);
+    coverImg.onload=draw;
+    $("pickLogo").onclick=async()=>{
+      const p=await (await waitApi()).pick_logo();
+      if(p){ S.logo=p; $("status").textContent="Logo "+basename(p); }
     };
-    window.__rbFail = (err) => {
-      document.getElementById("gen").disabled = false;
-      document.getElementById("status").textContent = "Generate failed";
-      alert(err);
+    $("saveLook").onclick=async()=>{
+      const api=await waitApi();
+      const path=await api.pick_look_save("renderbolt-look.json");
+      if(!path) return; await api.write_text(path, JSON.stringify(look(), null, 2));
+      $("status").textContent="Saved look "+basename(path);
     };
-    document.getElementById("gen").onclick = async () => {
-      const api = await waitApi();
-      if (!S.audio) { alert("Choose an audio file first."); return; }
-      const song = document.getElementById("song").value || "renderbolt";
-      const dest = await api.pick_save(song + ".mp4");
-      if (!dest) return;
-      document.getElementById("gen").disabled = true;
-      document.getElementById("status").textContent = "Starting export…";
+    $("loadLook").onclick=async()=>{
+      const api=await waitApi();
+      const path=await api.pick_look_load();
+      if(!path) return;
+      try { applyLook(JSON.parse(await api.read_text(path))); $("status").textContent="Loaded "+basename(path); }
+      catch(e){ alert("Could not load look"); }
+    };
+    $("saveFrame").onclick=async()=>{
+      const api=await waitApi();
+      const path=await api.pick_png_save(($("song").value||"renderbolt")+"-frame.png");
+      if(!path) return; draw(); await api.save_data_url(path, cv.toDataURL("image/png"));
+      $("status").textContent="Saved frame "+basename(path);
+    };
+    function about(){ alert("Renderbolt 1.0.7\nDesigned by JMHBM\nCC BY 4.0\n\nWindows studio (WebView2)\nGenerate uses FFmpeg — AMF / NVENC / QSV\n\ngithub.com/JMHBM/Renderbolt"); }
+    $("aboutL").onclick=$("aboutR").onclick=about;
+    window.__rbProgress=(msg,pct)=>{ $("status").textContent=msg+(pct?`  ${pct.toFixed(0)}%`:""); if(pct) $("fill").style.width=pct+"%"; };
+    window.__rbDone=(dest,label)=>{ $("gen").disabled=false; $("status").textContent=`Saved ${basename(dest)} · ${label}`; alert("Saved "+dest+"\nEncoder: "+label); };
+    window.__rbFail=(err)=>{ $("gen").disabled=false; $("status").textContent="Generate failed"; alert(err); };
+    $("gen").onclick=async()=>{
+      const api=await waitApi();
+      if(!S.audio){ alert("Choose an audio file first."); return; }
+      const dest=await api.pick_save(($("song").value||"renderbolt")+".mp4");
+      if(!dest) return;
+      $("gen").disabled=true; $("status").textContent="Starting export…";
       await api.generate({
-        audio: S.audio, cover: S.cover, out: dest,
-        title: document.getElementById("song").value,
-        artist: document.getElementById("artist").value,
-        album: document.getElementById("album").value,
-        look: {
-          mode: S.mode, style: S.style, theme: S.theme,
-          base: document.getElementById("base").value,
-          tip: document.getElementById("tip").value,
-          aspect: S.aspect, res: S.res, fps: S.fps,
-          bounce: "Medium", show_titles: true, show_progress: true,
-        },
+        audio:S.audio, cover:S.cover, out:dest, logo:S.logo,
+        title:$("song").value, artist:$("artist").value, album:$("album").value,
+        look: look(),
       });
     };
-    resize();
-    loop();
-    waitApi().then(async (api) => {
-      const url = await api.default_cover();
-      if (url && !S.cover) { coverImg.src = url; document.getElementById("imageName").textContent = "stage.jpg"; }
+    document.addEventListener("keydown", e=>{
+      if(["INPUT","TEXTAREA"].includes(e.target.tagName)) return;
+      if(e.code==="Space"){ e.preventDefault(); $("play").click(); }
+      if(e.key==="g"||e.key==="G") $("gen").click();
+      if(e.key==="r"||e.key==="R") $("shuffle").click();
+      if(e.key==="s"||e.key==="S") $("saveFrame").click();
+      if(e.key==="F1") about();
+    });
+    window.addEventListener("resize", draw);
+    paintGrad(); draw(); loop();
+    waitApi().then(async api=>{
+      const url=await api.default_cover();
+      if(url && !S.cover){ coverImg.src=url; $("imageName").textContent="stage.jpg"; }
     });
   </script>
 </body>

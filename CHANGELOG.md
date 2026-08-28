@@ -16,6 +16,7 @@
 - Studio preview no longer redraws 24fps when idle (Windows Tk freeze)
 - Studio preview is a cheap 2D sketch; ModernGL 3D runs only on export
 - Windows studio rebuilt on Edge WebView2 (not Tk). Preview is HTML/canvas so the cover actually shows; Generate still uses FFmpeg (AMF/NVENC/QSV). Linux .deb is unchanged.
+- Windows studio matches the .deb: scrollable Advanced, color squares, placement, starter looks, shuffle, save/load look
 
 ## 1.0.6 — 2026-08-25
 

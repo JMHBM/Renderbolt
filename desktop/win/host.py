@@ -128,6 +128,78 @@ class Api:
             path = path + ".mp4"
         return path
 
+    def pick_logo(self) -> str:
+        import webview
+
+        w = self._win()
+        if not w:
+            return ""
+        result = w.create_file_dialog(
+            webview.OPEN_DIALOG,
+            file_types=("Images (*.png;*.webp;*.jpg;*.jpeg)", "All files (*.*)"),
+        )
+        return result[0] if result else ""
+
+    def pick_look_save(self, name: str = "renderbolt-look.json") -> str:
+        import webview
+
+        w = self._win()
+        if not w:
+            return ""
+        result = w.create_file_dialog(
+            webview.SAVE_DIALOG,
+            save_filename=name,
+            file_types=("Renderbolt look (*.json)",),
+        )
+        if not result:
+            return ""
+        path = result if isinstance(result, str) else result[0]
+        if path and not path.lower().endswith(".json"):
+            path += ".json"
+        return path
+
+    def pick_look_load(self) -> str:
+        import webview
+
+        w = self._win()
+        if not w:
+            return ""
+        result = w.create_file_dialog(
+            webview.OPEN_DIALOG,
+            file_types=("Renderbolt look (*.json)", "All files (*.*)"),
+        )
+        return result[0] if result else ""
+
+    def write_text(self, path: str, text: str) -> bool:
+        Path(path).write_text(text, encoding="utf-8")
+        return True
+
+    def read_text(self, path: str) -> str:
+        return Path(path).read_text(encoding="utf-8")
+
+    def pick_png_save(self, name: str = "renderbolt-frame.png") -> str:
+        import webview
+
+        w = self._win()
+        if not w:
+            return ""
+        result = w.create_file_dialog(
+            webview.SAVE_DIALOG,
+            save_filename=name,
+            file_types=("PNG image (*.png)",),
+        )
+        if not result:
+            return ""
+        path = result if isinstance(result, str) else result[0]
+        if path and not path.lower().endswith(".png"):
+            path += ".png"
+        return path
+
+    def save_data_url(self, path: str, data_url: str) -> bool:
+        raw = data_url.split(",", 1)[-1]
+        Path(path).write_bytes(base64.b64decode(raw))
+        return True
+
     def file_data_url(self, path: str, max_bytes: int = 12_000_000) -> str:
         if not path or not os.path.isfile(path):
             return ""
@@ -201,6 +273,9 @@ class Api:
                 )
             look = dict(opts.get("look") or {})
             logo = None
+            logo_path = opts.get("logo") or ""
+            if logo_path and os.path.isfile(logo_path):
+                logo = Image.open(logo_path).convert("RGBA")
 
             def progress(msg: str, pct: float) -> None:
                 self._js("__rbProgress", str(msg), float(pct or 0))
