@@ -11,7 +11,7 @@ First official **Windows** release. Debian / Ubuntu `.deb` remains supported.
 - Shareable look JSON in `looks/`
 - Headless CLI: `renderbolt render --audio … --out …`
 - VA-API on Linux: rank any AMD GPU, `--probe-gpu`
-- 2D export uses the same GPU engine as 3D (no per-frame LANCZOS / PIL bars)
+- Windows live preview uses the GPU engine (~12 fps at 960px). UI stays on WebView; GL never runs on the UI thread.
 
 ## 1.0.6 — 2026-08-25
 
