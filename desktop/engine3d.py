@@ -131,14 +131,14 @@ def _scale(x: float, y: float, z: float) -> np.ndarray:
     return m
 
 
-def _rotate_y(deg: float) -> np.ndarray:
+def _rotate_z(deg: float) -> np.ndarray:
     r = math.radians(deg)
     c, s = math.cos(r), math.sin(r)
     m = _mat4_identity()
     m[0, 0] = c
-    m[0, 2] = s
-    m[2, 0] = -s
-    m[2, 2] = c
+    m[0, 1] = -s
+    m[1, 0] = s
+    m[1, 1] = c
     return m
 
 
@@ -203,9 +203,12 @@ class VisualEngine3D:
         self.cover_tex.repeat_y = False
         self._cover_vbo = None
         self._cover_vao = None
+        self._ndc_vbo = None
+        self._ndc_vao = None
         self._dyn_vbo = self.ctx.buffer(reserve=8 * 1024 * 1024)
         self._cube_pos, self._cube_n, _ = _cube()
         self._build_cover_quad()
+        self._build_ndc_cover()
         info = getattr(self.ctx, "info", {}) or {}
         self.renderer = str(info.get("GL_RENDERER") or "")
         self.vendor = str(info.get("GL_VENDOR") or "")
@@ -240,6 +243,23 @@ class VisualEngine3D:
         self._cover_vbo = self.ctx.buffer(pos.tobytes())
         self._cover_vao = self.ctx.simple_vertex_array(
             self.cover_prog, self._cover_vbo, "in_pos", "in_uv"
+        )
+
+    def _build_ndc_cover(self) -> None:
+        pos = np.array(
+            [
+                [-1.0, -1.0, 0.0, 0.0, 1.0],
+                [1.0, -1.0, 0.0, 1.0, 1.0],
+                [1.0, 1.0, 0.0, 1.0, 0.0],
+                [-1.0, -1.0, 0.0, 0.0, 1.0],
+                [1.0, 1.0, 0.0, 1.0, 0.0],
+                [-1.0, 1.0, 0.0, 0.0, 0.0],
+            ],
+            dtype=np.float32,
+        )
+        self._ndc_vbo = self.ctx.buffer(pos.tobytes())
+        self._ndc_vao = self.ctx.simple_vertex_array(
+            self.cover_prog, self._ndc_vbo, "in_pos", "in_uv"
         )
 
     def set_cover(self, image: Any) -> None:
@@ -296,21 +316,37 @@ class VisualEngine3D:
         vis_alpha: float,
         t: float,
         place: dict | None = None,
+        mode: str = "3D",
     ) -> bytes:
         primary = _hex_rgb(theme[0])
         secondary = _hex_rgb(theme[1] if len(theme) > 1 else theme[0])
         pulse = float(analysis["pulse"]) * bounce
         target = 1.08 + pulse * 0.14 + float(analysis["bass"]) * 0.04
         zoom_state[0] = zoom_state[0] + (target - zoom_state[0]) * 0.28
-        mvp, eye = self._camera(tilt, t, pulse)
-        light = np.array([3.2, 7.4, 5.0], dtype=np.float32)
-        fog = (0.04, 0.04, 0.045)
+        place = place or {}
+        bands = np.asarray(analysis["bands"], dtype=np.float32)
+        td = np.asarray(analysis["time"], dtype=np.float32)
+        alpha = float(np.clip(vis_alpha, 0.18, 1.0))
 
         self.fbo.use()
         self.ctx.viewport = (0, 0, self.w, self.h)
         self.ctx.clear(0.04, 0.04, 0.043, 1.0)
 
-        cover_mvp = _mul(mvp, _scale(zoom_state[0], zoom_state[0], 1.0))
+        if str(mode).upper() == "2D":
+            self._render_2d(bands, td, style, primary, secondary, pulse, zoom_state[0], alpha, t, place)
+        else:
+            self._render_3d(bands, td, style, primary, secondary, pulse, zoom_state[0], alpha, t, tilt, place)
+
+        raw = self.fbo.read(components=3, alignment=1)
+        frame = np.frombuffer(raw, dtype=np.uint8).reshape(self.h, self.w, 3)
+        return np.flipud(frame).tobytes()
+
+    def _render_3d(self, bands, td, style, primary, secondary, pulse, zoom, alpha, t, tilt, place) -> None:
+        mvp, eye = self._camera(tilt, t, pulse)
+        light = np.array([3.2, 7.4, 5.0], dtype=np.float32)
+        fog = (0.04, 0.04, 0.045)
+
+        cover_mvp = _mul(mvp, _scale(zoom, zoom, 1.0))
         self.ctx.disable(self.ctx.DEPTH_TEST)
         self.cover_tex.use(0)
         self.cover_prog["u_tex"].value = 0
@@ -319,9 +355,6 @@ class VisualEngine3D:
         self._cover_vao.render()
         self.ctx.enable(self.ctx.DEPTH_TEST)
 
-        bands = np.asarray(analysis["bands"], dtype=np.float32)
-        td = np.asarray(analysis["time"], dtype=np.float32)
-        place = place or {}
         sx = float(place.get("sx") or 1.0)
         sy = float(place.get("sy") or 1.0)
         if place.get("mirror"):
@@ -330,7 +363,6 @@ class VisualEngine3D:
             _translate(float(place.get("x") or 0) * 4.2, float(place.get("y") or 0) * 2.4, 0.0),
             _mul(_rotate_y(float(place.get("rot") or 0)), _scale(sx, sy, abs(sx))),
         )
-        alpha = float(np.clip(vis_alpha, 0.18, 1.0))
 
         if style == "EQ bars":
             pos, nrm, col = self._mesh_bars(bands, primary, secondary)
@@ -342,9 +374,140 @@ class VisualEngine3D:
             pos, nrm, col = self._mesh_ribbon(td, bands, t, primary, secondary)
 
         self._draw_mesh(pos, nrm, col, mvp, model, eye, alpha, fog, light)
-        raw = self.fbo.read(components=3, alignment=1)
-        frame = np.frombuffer(raw, dtype=np.uint8).reshape(self.h, self.w, 3)
-        return np.flipud(frame).tobytes()
+
+    def _render_2d(self, bands, td, style, primary, secondary, pulse, zoom, alpha, t, place) -> None:
+        self.ctx.disable(self.ctx.DEPTH_TEST)
+        ident = _mat4_identity()
+        cover_mvp = _scale(zoom, zoom, 1.0)
+        self.cover_tex.use(0)
+        self.cover_prog["u_tex"].value = 0
+        self.cover_prog["u_dim"].value = 0.62 - pulse * 0.08
+        self.cover_prog["u_mvp"].write(cover_mvp.T.tobytes())
+        self._ndc_vao.render()
+
+        sx = float(place.get("sx") or 1.0)
+        sy = float(place.get("sy") or 1.0)
+        if place.get("mirror"):
+            sx = -sx
+        model = _mul(
+            _translate(float(place.get("x") or 0) * 0.9, float(place.get("y") or 0) * 0.7, 0.0),
+            _mul(_rotate_z(float(place.get("rot") or 0)), _scale(sx, sy, 1.0)),
+        )
+        eye = np.array([0.0, 0.0, 2.0], dtype=np.float32)
+        light = np.array([0.2, 0.8, 2.4], dtype=np.float32)
+        fog = (0.04, 0.04, 0.045)
+
+        if style == "EQ bars":
+            pos, nrm, col = self._mesh_2d_eq(bands, primary, secondary)
+        elif style == "Circular":
+            pos, nrm, col = self._mesh_2d_circular(bands, pulse, primary, secondary)
+        elif style == "Liquid waves":
+            pos, nrm, col = self._mesh_2d_liquid(bands, t, primary, secondary)
+        else:
+            pos, nrm, col = self._mesh_2d_wave(td, primary, secondary)
+
+        self._draw_mesh(pos, nrm, col, ident, model, eye, alpha, fog, light)
+
+    def _mesh_2d_eq(self, bands: np.ndarray, primary, secondary):
+        n = 48
+        pos, nrm, col = [], [], []
+        front = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+        span, gap = 1.68, 0.006
+        bw = span / n - gap
+        for i in range(n):
+            v = float(bands[int(i / max(1, n - 1) * (len(bands) - 1))])
+            x0 = -0.84 + i * (span / n)
+            x1 = x0 + bw
+            y0, y1 = -0.48, -0.48 + 0.06 + v * 0.78
+            p = np.array(
+                [[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y0, 0], [x1, y1, 0], [x0, y1, 0]],
+                dtype=np.float32,
+            )
+            c = _grad(primary, secondary, 0.15 + v * 0.85)
+            pos.append(p)
+            nrm.append(np.repeat(front.reshape(1, 3), 6, axis=0))
+            col.append(np.repeat(c.reshape(1, 3), 6, axis=0))
+        return np.concatenate(pos), np.concatenate(nrm), np.concatenate(col).astype(np.float32)
+
+    def _mesh_2d_wave(self, td: np.ndarray, primary, secondary):
+        samples = 160
+        step = max(1, td.size // samples)
+        vals = np.array(
+            [float(td[i * step : (i + 1) * step].mean()) if td.size else 0.0 for i in range(samples)],
+            dtype=np.float32,
+        )
+        pos, nrm, col = [], [], []
+        front = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+        for i in range(samples - 1):
+            x0 = -0.86 + 1.72 * (i / (samples - 1))
+            x1 = -0.86 + 1.72 * ((i + 1) / (samples - 1))
+            y0, y1 = vals[i] * 0.32, vals[i + 1] * 0.32
+            thick = 0.018
+            p = np.array(
+                [
+                    [x0, y0 - thick, 0], [x1, y1 - thick, 0], [x1, y1 + thick, 0],
+                    [x0, y0 - thick, 0], [x1, y1 + thick, 0], [x0, y0 + thick, 0],
+                ],
+                dtype=np.float32,
+            )
+            c = _grad(primary, secondary, 0.5 + 0.5 * vals[i])
+            pos.append(p)
+            nrm.append(np.repeat(front.reshape(1, 3), 6, axis=0))
+            col.append(np.repeat(c.reshape(1, 3), 6, axis=0))
+        return np.concatenate(pos), np.concatenate(nrm), np.concatenate(col).astype(np.float32)
+
+    def _mesh_2d_circular(self, bands: np.ndarray, pulse: float, primary, secondary):
+        n = 64
+        pos, nrm, col = [], [], []
+        front = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+        inner = 0.22 + pulse * 0.03
+        for i in range(n):
+            v = float(bands[int(i / n * len(bands)) % len(bands)])
+            a0 = i / n * math.tau - math.pi / 2
+            a1 = (i + 0.72) / n * math.tau - math.pi / 2
+            outer = inner + 0.06 + v * 0.32
+            c0, s0, c1, s1 = math.cos(a0), math.sin(a0), math.cos(a1), math.sin(a1)
+            p = np.array(
+                [
+                    [c0 * inner, s0 * inner + 0.06, 0],
+                    [c1 * inner, s1 * inner + 0.06, 0],
+                    [c1 * outer, s1 * outer + 0.06, 0],
+                    [c0 * inner, s0 * inner + 0.06, 0],
+                    [c1 * outer, s1 * outer + 0.06, 0],
+                    [c0 * outer, s0 * outer + 0.06, 0],
+                ],
+                dtype=np.float32,
+            )
+            c = _grad(primary, secondary, v)
+            pos.append(p)
+            nrm.append(np.repeat(front.reshape(1, 3), 6, axis=0))
+            col.append(np.repeat(c.reshape(1, 3), 6, axis=0))
+        return np.concatenate(pos), np.concatenate(nrm), np.concatenate(col).astype(np.float32)
+
+    def _mesh_2d_liquid(self, bands: np.ndarray, t: float, primary, secondary):
+        n = 48
+        pos, nrm, col = [], [], []
+        front = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+        ys = []
+        for i in range(n):
+            tt = i / (n - 1)
+            b = float(bands[int(tt * (len(bands) - 1))])
+            ys.append(-0.18 - math.sin(tt * math.pi * 3 + t) * 0.08 - b * 0.12)
+        for i in range(n - 1):
+            x0 = -1.0 + 2.0 * (i / (n - 1))
+            x1 = -1.0 + 2.0 * ((i + 1) / (n - 1))
+            p = np.array(
+                [
+                    [x0, -1.0, 0], [x1, -1.0, 0], [x1, ys[i + 1], 0],
+                    [x0, -1.0, 0], [x1, ys[i + 1], 0], [x0, ys[i], 0],
+                ],
+                dtype=np.float32,
+            )
+            c = _grad(primary, secondary, 0.35 + 0.5 * ((ys[i] + 0.4) / 0.5))
+            pos.append(p)
+            nrm.append(np.repeat(front.reshape(1, 3), 6, axis=0))
+            col.append(np.repeat(c.reshape(1, 3), 6, axis=0))
+        return np.concatenate(pos), np.concatenate(nrm), np.concatenate(col).astype(np.float32)
 
     def _mesh_bars(self, bands: np.ndarray, primary, secondary) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         n = 48

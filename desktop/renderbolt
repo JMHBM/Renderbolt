@@ -1176,8 +1176,8 @@ def render_frame(
     primary, secondary = hex_rgb(theme[0]), hex_rgb(theme[1] if len(theme) > 1 else theme[0])
     out_w, out_h = size or (W, H)
     place = place or {}
-    if engine is not None and size is None and mode == "3D":
-        rgb = engine.render_rgb(analysis, style, theme, bounce, zoom_state, tilt, vis_alpha, t, place)
+    if engine is not None and size is None:
+        rgb = engine.render_rgb(analysis, style, theme, bounce, zoom_state, tilt, vis_alpha, t, place, mode)
         ow, oh = getattr(engine, "w", W), getattr(engine, "h", H)
         img = Image.frombytes("RGB", (ow, oh), rgb).convert("RGBA")
         img = apply_grade(img, vignette, grain, t)
@@ -1259,22 +1259,21 @@ def run_export(
     else:
         progress("No hardware encoder — using CPU", 0)
     engine = None
-    if look.get("mode") == "3D":
+    try:
+        from engine3d import try_create
+    except ImportError:
         try:
-            from engine3d import try_create
+            from desktop.engine3d import try_create  # type: ignore
         except ImportError:
-            try:
-                from desktop.engine3d import try_create  # type: ignore
-            except ImportError:
-                try_create = None  # type: ignore
-        if try_create is not None:
-            progress(f"Starting 3D engine ({look['res']})…", 0)
-            engine = try_create(ow, oh)
-            if engine is not None:
-                engine.set_cover(cover)
-                gl = getattr(engine, "renderer", "") or ""
-                if gl:
-                    progress(f"GL {gl}", 0)
+            try_create = None  # type: ignore
+    if try_create is not None:
+        progress(f"Starting GPU engine ({look['res']})…", 0)
+        engine = try_create(ow, oh)
+        if engine is not None:
+            engine.set_cover(cover)
+            gl = getattr(engine, "renderer", "") or ""
+            if gl:
+                progress(f"GL {gl}", 0)
     attempts: list[tuple[str, list[str], dict | None]] = []
     if hw:
         attempts.append(

@@ -11,7 +11,7 @@ First official **Windows** release. Debian / Ubuntu `.deb` remains supported.
 - Shareable look JSON in `looks/`
 - Headless CLI: `renderbolt render --audio … --out …`
 - VA-API on Linux: rank any AMD GPU, `--probe-gpu`
-- Linux studio: 2D/3D, formats, glow, vignette, grain, fade, 720p / 1080p / 4K
+- 2D export uses the same GPU engine as 3D (no per-frame LANCZOS / PIL bars)
 
 ## 1.0.6 — 2026-08-25
 
