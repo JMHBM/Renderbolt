@@ -418,7 +418,7 @@ class VisualEngine3D:
             v = float(bands[int(i / max(1, n - 1) * (len(bands) - 1))])
             x0 = -0.84 + i * (span / n)
             x1 = x0 + bw
-            y0, y1 = -0.48, -0.48 + 0.06 + v * 0.78
+            y0, y1 = -0.92, -0.92 + 0.05 + v * 0.42
             p = np.array(
                 [[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y0, 0], [x1, y1, 0], [x0, y1, 0]],
                 dtype=np.float32,
@@ -441,7 +441,7 @@ class VisualEngine3D:
         for i in range(samples - 1):
             x0 = -0.86 + 1.72 * (i / (samples - 1))
             x1 = -0.86 + 1.72 * ((i + 1) / (samples - 1))
-            y0, y1 = vals[i] * 0.32, vals[i + 1] * 0.32
+            y0, y1 = -0.78 + vals[i] * 0.22, -0.78 + vals[i + 1] * 0.22
             thick = 0.018
             p = np.array(
                 [
@@ -492,7 +492,7 @@ class VisualEngine3D:
         for i in range(n):
             tt = i / (n - 1)
             b = float(bands[int(tt * (len(bands) - 1))])
-            ys.append(-0.18 - math.sin(tt * math.pi * 3 + t) * 0.08 - b * 0.12)
+            ys.append(-0.62 - math.sin(tt * math.pi * 3 + t) * 0.08 - b * 0.12)
         for i in range(n - 1):
             x0 = -1.0 + 2.0 * (i / (n - 1))
             x1 = -1.0 + 2.0 * ((i + 1) / (n - 1))

@@ -412,9 +412,9 @@
         const n=36;
         for(let i=0;i<n;i++){
           const v=0.2+0.7*Math.abs(Math.sin(t*2.2+i*0.28));
-          const bw=(w*0.82)/n, x=w*0.09+i*bw, bh=h*0.38*v;
+          const bw=(w*0.82)/n, x=w*0.09+i*bw, bh=h*0.28*v;
           ctx.fillStyle=rgba(mix(base,tip,v), a);
-          ctx.fillRect(x+2, h*0.74-bh, bw-4, bh);
+          ctx.fillRect(x+2, h*0.93-bh, bw-4, bh);
         }
       } else if(S.style==="Circular"){
         const cx=w/2, cy=h*0.48, n=56;
@@ -431,7 +431,7 @@
         ctx.beginPath(); ctx.moveTo(0,h);
         for(let i=0;i<=48;i++){
           const x=(i/48)*w;
-          const y=h*0.62-Math.sin(i/48*Math.PI*3+t)*h*0.07-Math.abs(Math.sin(t+i))*h*0.09;
+          const y=h*0.82-Math.sin(i/48*Math.PI*3+t)*h*0.07-Math.abs(Math.sin(t+i))*h*0.09;
           ctx.lineTo(x,y);
         }
         ctx.lineTo(w,h); ctx.closePath(); ctx.fillStyle=rgba(tip,0.45*a); ctx.fill();
@@ -439,7 +439,7 @@
         ctx.beginPath();
         for(let i=0;i<96;i++){
           const x=w*0.08+(i/95)*w*0.84;
-          const y=h*0.6-Math.sin(t*4+i*0.22)*h*0.13;
+          const y=h*0.82-Math.sin(t*4+i*0.22)*h*0.13;
           i?ctx.lineTo(x,y):ctx.moveTo(x,y);
         }
         ctx.strokeStyle=rgba(tip,a); ctx.lineWidth=3; ctx.stroke();

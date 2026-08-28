@@ -251,8 +251,8 @@ def _draw_2d(
         pad, avail = w * 0.08, w * 0.84
         gap = max(2, avail * 0.006)
         bw = max(2, (avail - gap * (n - 1)) / n)
-        base_y = h * 0.74
-        max_h = h * 0.38
+        base_y = h * 0.93
+        max_h = h * 0.28
         for i in range(n):
             v = float(bands[int(i / (n - 1) * (len(bands) - 1))])
             bh = max(4, v * max_h)
@@ -304,7 +304,7 @@ def _draw_2d(
             col = tip if use_tip else base
             draw.polygon([(int(p[0]), int(p[1])) for p in poly], fill=_rgba(col, aa * a))
     else:
-        mid, amp = h * 0.58, h * (0.14 + float(analysis.get("bass") or 0) * 0.08)
+        mid, amp = h * 0.82, h * (0.12 + float(analysis.get("bass") or 0) * 0.08)
         step = max(1, td.size // 480)
         count = max(2, td.size // step)
         top, bot = [], []
@@ -349,8 +349,8 @@ def draw_lite(
         pad, avail = w * 0.08, w * 0.84
         gap = max(1, avail * 0.01)
         bw = max(2, (avail - gap * (n - 1)) / n)
-        base_y = h * 0.76
-        max_h = h * 0.36
+        base_y = h * 0.93
+        max_h = h * 0.28
         for i in range(n):
             v = float(bands[int(i / max(1, n - 1) * (len(bands) - 1))])
             bh = max(3, v * max_h)
