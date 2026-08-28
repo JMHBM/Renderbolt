@@ -14,6 +14,7 @@
 - Windows installer (Inno Setup): AMF / NVENC / QSV, bundled FFmpeg
 - Windows: generate no longer crashes looking for a Linux DRM `device`; export runs off the UI thread so the sidebar still scrolls
 - Studio preview no longer redraws 24fps when idle (Windows Tk freeze)
+- Studio preview is a cheap 2D sketch; ModernGL 3D runs only on export
 
 ## 1.0.6 — 2026-08-25
 

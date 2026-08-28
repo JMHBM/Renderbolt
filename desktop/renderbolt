@@ -1447,6 +1447,9 @@ class App(tk.Tk):
         self._preview_dirty = True
         self._preview_ms = 0.0
         self._idle_preview_job: str | None = None
+        self._suspend_preview = False
+        self._cover_key: tuple | None = None
+        self._cover_small: Image.Image | None = None
         self.cfg = load_config()
         self._audio_dir = self.cfg.get("audio_dir") or ""
         self._image_dir = self.cfg.get("image_dir") or ""
@@ -1924,41 +1927,47 @@ class App(tk.Tk):
 
     def apply_look(self, data: dict) -> None:
         data = merge_look(data)
-        self.mode_var.set(data.get("mode", "3D"))
-        self.style_var.set(data.get("style", "Waveform"))
-        if data.get("theme") in THEMES:
-            self.theme_var.set(data["theme"])
-        self.base_color.set(data.get("base", THEMES["Ice"][0]))
-        self.tip_color.set(data.get("tip", THEMES["Ice"][1]))
-        if data.get("bounce") in BOUNCE:
-            self.bounce_var.set(data["bounce"])
-        self.tilt_var.set(float(data.get("tilt", 42)))
-        self.alpha_var.set(float(data.get("alpha", 0.78)))
-        place = data.get("place") or {}
-        self.vis_x.set(float(place.get("x", 0)))
-        self.vis_y.set(float(place.get("y", 0)))
-        self.vis_rot.set(float(place.get("rot", 0)))
-        self.vis_sx.set(float(place.get("sx", 1)))
-        self.vis_sy.set(float(place.get("sy", 1)))
-        self.mirror.set(bool(place.get("mirror", False)))
-        self.sens_var.set(float(data.get("sens", 1)))
-        self.glow_var.set(float(data.get("glow", 0.4)))
-        self.vignette_var.set(float(data.get("vignette", 0.55)))
-        self.grain_var.set(float(data.get("grain", 0.1)))
-        self.title_scale.set(float(data.get("title_scale", 1)))
-        self.show_titles.set(bool(data.get("show_titles", True)))
-        self.show_progress.set(bool(data.get("show_progress", True)))
-        if data.get("aspect") in ASPECTS:
-            self.aspect_var.set(data["aspect"])
-        if data.get("res") in RESOLUTIONS:
-            self.res_var.set(data["res"])
-        if str(data.get("fps")) in ("24", "30", "60"):
-            self.fps_var.set(str(data["fps"]))
-        self.fade_in.set(float(data.get("fade_in", 0.6)))
-        self.fade_out.set(float(data.get("fade_out", 1.2)))
-        if data.get("title_pos") in ("Top", "Bottom"):
-            self.title_pos.set(data["title_pos"])
-        self.pulse_hue.set(float(data.get("pulse_hue", 0)))
+        self._suspend_preview = True
+        try:
+            self.mode_var.set(data.get("mode", "3D"))
+            self.style_var.set(data.get("style", "Waveform"))
+            if data.get("theme") in THEMES:
+                self.theme_var.set(data["theme"])
+            self.base_color.set(data.get("base", THEMES["Ice"][0]))
+            self.tip_color.set(data.get("tip", THEMES["Ice"][1]))
+            if data.get("bounce") in BOUNCE:
+                self.bounce_var.set(data["bounce"])
+            self.tilt_var.set(float(data.get("tilt", 42)))
+            self.alpha_var.set(float(data.get("alpha", 0.78)))
+            place = data.get("place") or {}
+            self.vis_x.set(float(place.get("x", 0)))
+            self.vis_y.set(float(place.get("y", 0)))
+            self.vis_rot.set(float(place.get("rot", 0)))
+            self.vis_sx.set(float(place.get("sx", 1)))
+            self.vis_sy.set(float(place.get("sy", 1)))
+            self.mirror.set(bool(place.get("mirror", False)))
+            self.sens_var.set(float(data.get("sens", 1)))
+            self.glow_var.set(float(data.get("glow", 0.4)))
+            self.vignette_var.set(float(data.get("vignette", 0.55)))
+            self.grain_var.set(float(data.get("grain", 0.1)))
+            self.title_scale.set(float(data.get("title_scale", 1)))
+            self.show_titles.set(bool(data.get("show_titles", True)))
+            self.show_progress.set(bool(data.get("show_progress", True)))
+            if data.get("aspect") in ASPECTS:
+                self.aspect_var.set(data["aspect"])
+            if data.get("res") in RESOLUTIONS:
+                self.res_var.set(data["res"])
+            if str(data.get("fps")) in ("24", "30", "60"):
+                self.fps_var.set(str(data["fps"]))
+            self.fade_in.set(float(data.get("fade_in", 0.6)))
+            self.fade_out.set(float(data.get("fade_out", 1.2)))
+            if data.get("title_pos") in ("Top", "Bottom"):
+                self.title_pos.set(data["title_pos"])
+            self.pulse_hue.set(float(data.get("pulse_hue", 0)))
+        finally:
+            self._suspend_preview = False
+            self._preview_dirty = True
+            self.after(80, self._idle_preview)
 
     def apply_starter(self, name: str) -> None:
         look = STARTER_LOOKS.get(name)
@@ -2097,6 +2106,8 @@ class App(tk.Tk):
             self._player = None
 
     def _mark_preview_dirty(self, *_args) -> None:
+        if getattr(self, "_suspend_preview", False):
+            return
         self._preview_dirty = True
         if self._playing:
             return
@@ -2169,45 +2180,51 @@ class App(tk.Tk):
         if self.cover is None or self._analyzer is None:
             return
         try:
+            w, h = self._preview_wh()
             analysis = self._analyzer.at(self._t0, 1 / 24, float(self.sens_var.get()))
             theme = self._theme_pair()
-            bounce = BOUNCE.get(self.bounce_var.get(), 1.0)
-            g = self._grade()
-            frame = render_frame(
-                self.cover,
+            cover = self._cover_for_preview(w, h)
+            img = cover.convert("RGBA")
+            img = Image.alpha_composite(img, Image.new("RGBA", (w, h), (10, 10, 11, 70)))
+            try:
+                from preview3d import draw_lite
+            except ImportError:
+                from desktop.preview3d import draw_lite  # type: ignore
+            draw_lite(
+                img,
                 analysis,
-                self._t0,
-                self._duration,
                 self.style_var.get(),
                 theme,
+                float(self.alpha_var.get()),
+                self._place(),
+            )
+            g = self._grade()
+            draw_chrome(
+                img,
+                self._t0,
+                self._duration,
+                hex_rgb(theme[0]),
                 self.song.get(),
                 self.artist.get(),
                 self.album.get(),
-                bounce,
                 self.show_titles.get(),
-                self._zoom_preview,
-                None,
-                float(self.tilt_var.get()),
-                float(self.alpha_var.get()),
-                self._preview_wh(),
-                self.mode_var.get(),
-                self._place(),
                 self.show_progress.get(),
-                g["glow"],
-                g["vignette"],
-                g["grain"],
                 g["title_scale"],
-                self.logo_im,
-                g["fade_in"],
-                g["fade_out"],
                 g["title_pos"],
-                g["pulse_hue"],
-                True,
             )
-            self.preview_imgtk = ImageTk.PhotoImage(frame)
+            self.preview_imgtk = ImageTk.PhotoImage(img.convert("RGB"))
             self.preview.configure(image=self.preview_imgtk)
         except Exception:
             pass
+
+    def _cover_for_preview(self, w: int, h: int) -> Image.Image:
+        key = (id(self.cover), w, h)
+        if self._cover_key == key and self._cover_small is not None:
+            return self._cover_small
+        src = self.cover or Image.new("RGB", (w, h), (12, 12, 16))
+        self._cover_small = src.convert("RGB").resize((w, h), Image.Resampling.BILINEAR)
+        self._cover_key = key
+        return self._cover_small
 
     def _preview_wh(self) -> tuple[int, int]:
         pw = max(320, int(self.preview.winfo_width() or 640))
@@ -2217,7 +2234,7 @@ class App(tk.Tk):
             pw = int(ph * ar[0] / ar[1])
         else:
             ph = int(pw * ar[1] / ar[0])
-        cap = 480 if WIN else (640 if ar[1] > ar[0] else 720)
+        cap = 400 if WIN else 560
         if self._preview_ms > 90:
             cap = 360
         scale = min(1.0, cap / max(pw, ph, 1))
@@ -2281,6 +2298,7 @@ class App(tk.Tk):
             self.cover = Image.new("RGB", (W, H), (12, 12, 16))
         else:
             self.cover = Image.open(path).convert("RGB")
+        self._cover_key = None
         self._zoom_preview = [1.12]
         self._render_preview()
 

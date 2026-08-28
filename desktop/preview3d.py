@@ -317,3 +317,81 @@ def _draw_2d(
         if len(poly) > 4:
             draw.polygon([(int(p[0]), int(p[1])) for p in poly], fill=_rgba(base, 0.55 * a))
             draw.line([(int(p[0]), int(p[1])) for p in top], fill=_rgba(tip, 0.95 * a), width=3)
+
+
+def draw_lite(
+    img: Image.Image,
+    analysis: dict,
+    style: str,
+    theme: tuple[str, str],
+    vis_alpha: float,
+    place: dict[str, Any] | None = None,
+) -> None:
+    """Cheap 2D overlay for the studio preview. No 3D, no blur."""
+    w, h = img.size
+    overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay, "RGBA")
+    base = _hex(theme[0])
+    tip = _hex(theme[1] if len(theme) > 1 else theme[0])
+    a = max(0.35, min(1.0, vis_alpha))
+    bands = analysis.get("bands") or [0.0]
+    td = analysis.get("time")
+    pulse = float(analysis.get("pulse") or 0)
+    place = place or {}
+    xoff = float(place.get("x") or 0)
+    yoff = float(place.get("y") or 0)
+
+    def P(px: float, py: float) -> tuple[int, int]:
+        return int(px + xoff * w * 0.45), int(py - yoff * h * 0.4)
+
+    if style == "EQ bars":
+        n = 28
+        pad, avail = w * 0.08, w * 0.84
+        gap = max(1, avail * 0.01)
+        bw = max(2, (avail - gap * (n - 1)) / n)
+        base_y = h * 0.76
+        max_h = h * 0.36
+        for i in range(n):
+            v = float(bands[int(i / max(1, n - 1) * (len(bands) - 1))])
+            bh = max(3, v * max_h)
+            x = pad + i * (bw + gap)
+            col = _rgba(_mix(base, tip, v), a)
+            x0, y0 = P(x, base_y - bh)
+            x1, y1 = P(x + bw, base_y)
+            draw.rectangle([x0, y0, x1, y1], fill=col)
+    elif style == "Circular":
+        cx, cy = w * 0.5, h * 0.48
+        inner = min(w, h) * (0.16 + pulse * 0.02)
+        n = 48
+        for i in range(n):
+            v = float(bands[int(i / n * len(bands)) % len(bands)])
+            ang = i / n * math.tau - math.pi / 2
+            r0, r1 = inner, inner + v * min(w, h) * 0.2
+            p0 = P(cx + math.cos(ang) * r0, cy + math.sin(ang) * r0)
+            p1 = P(cx + math.cos(ang) * r1, cy + math.sin(ang) * r1)
+            draw.line([p0, p1], fill=_rgba(_mix(base, tip, v), a), width=3)
+    elif style == "Liquid waves":
+        pts = 40
+        poly = [P(0, h), P(0, h * 0.7)]
+        for i in range(pts + 1):
+            tt = i / pts
+            v = float(bands[int(tt * (len(bands) - 1))])
+            y = h * 0.62 - math.sin(tt * math.pi * 3) * h * 0.06 - v * h * 0.12
+            poly.append(P(tt * w, y))
+        poly.append(P(w, h))
+        draw.polygon(poly, fill=_rgba(tip, 0.35 * a))
+    else:
+        mid, amp = h * 0.6, h * 0.16
+        n = 64
+        pts = []
+        if td is not None and getattr(td, "size", 0):
+            step = max(1, td.size // n)
+            for i in range(n):
+                chunk = td[i * step : (i + 1) * step]
+                v = float(chunk.mean()) if chunk.size else 0.0
+                x = w * 0.08 + (i / (n - 1)) * w * 0.84
+                pts.append(P(x, mid - v * amp))
+        if len(pts) > 1:
+            draw.line(pts, fill=_rgba(tip, a), width=3)
+    img.alpha_composite(overlay)
+
