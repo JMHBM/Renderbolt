@@ -1984,8 +1984,8 @@ class App(tk.Tk):
         snap = "\nffmpeg is a snap — GPU encode is often blocked. apt install ffmpeg." if ffmpeg_is_snap() else ""
         messagebox.showinfo(
             APP_NAME,
-            f"{APP_NAME} {VERSION}  (unreleased)\n"
-            f"Public GitHub Release: 1.0.6\n\n"
+            f"{APP_NAME} {VERSION}\n"
+            f"github.com/JMHBM/Renderbolt\n\n"
             f"Designed by {AUTHOR}\n"
             f"{LICENSE}\n\n"
             f"Encoder: {gpu}{snap}\n"

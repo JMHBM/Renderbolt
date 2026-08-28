@@ -1,22 +1,17 @@
 # Changelog
 
-## Unreleased — 1.0.7
+## 1.0.7 — 2026-08-28
 
+First official **Windows** release. Debian / Ubuntu `.deb` remains supported.
+
+- Windows studio on Edge WebView2 (not Tk): live canvas preview, UI stays responsive
+- Square color pickers, Advanced panel, placement, starter looks, shuffle, save/load look
+- Hardware encode: AMD AMF, NVIDIA NVENC, Intel QSV, CPU fallback
 - Starter looks: Night Drive, Live Session, Vinyl, After Hours, Neon Rain, Broadcast
 - Shareable look JSON in `looks/`
-- Remembers last folders and the current look in `~/.config/renderbolt/`
-- Save the current frame as PNG (`S`)
 - Headless CLI: `renderbolt render --audio … --out …`
-- VA-API: rank any AMD GPU (not just renderD128), prefer distro ffmpeg over snap, `hwupload=extra_hw_frames`, `--probe-gpu`
-- Keys 1–6 load starter looks; F1 / wordmark opens About
-- AppStream metainfo for software centers
-- CI compile check on GitHub Actions
-- Windows installer (Inno Setup): AMF / NVENC / QSV, bundled FFmpeg
-- Windows: generate no longer crashes looking for a Linux DRM `device`; export runs off the UI thread so the sidebar still scrolls
-- Studio preview no longer redraws 24fps when idle (Windows Tk freeze)
-- Studio preview is a cheap 2D sketch; ModernGL 3D runs only on export
-- Windows studio rebuilt on Edge WebView2 (not Tk). Preview is HTML/canvas so the cover actually shows; Generate still uses FFmpeg (AMF/NVENC/QSV). Linux .deb is unchanged.
-- Windows studio matches the .deb: scrollable Advanced, color squares, placement, starter looks, shuffle, save/load look
+- VA-API on Linux: rank any AMD GPU, `--probe-gpu`
+- Linux studio: 2D/3D, formats, glow, vignette, grain, fade, 720p / 1080p / 4K
 
 ## 1.0.6 — 2026-08-25
 

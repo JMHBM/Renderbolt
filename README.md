@@ -4,8 +4,7 @@ Cinematic audio visualizer. Drop in a song and a still, pick a look, and export 
 
 Designed by **JMHBM**. [CC BY 4.0](LICENSE).
 
-**Public release: [1.0.6](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6)** · Debian / Ubuntu `.deb`  
-`main` is 1.0.7 in progress. Windows installer is built from `main` (Inno Setup). Fedora / RPM last. macOS later.
+**Latest: [1.0.7](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.7)** · Windows installer + Debian / Ubuntu `.deb`
 
 [![check](https://github.com/JMHBM/Renderbolt/actions/workflows/check.yml/badge.svg)](https://github.com/JMHBM/Renderbolt/actions/workflows/check.yml)
 [![windows](https://github.com/JMHBM/Renderbolt/actions/workflows/windows.yml/badge.svg)](https://github.com/JMHBM/Renderbolt/actions/workflows/windows.yml)
@@ -15,29 +14,25 @@ Designed by **JMHBM**. [CC BY 4.0](LICENSE).
 
 ![Renderbolt studio](docs/studio.png)
 
-## Install (1.0.6)
+## Windows
+
+Download **[Renderbolt-1.0.7-setup.exe](https://github.com/JMHBM/Renderbolt/releases/download/1.0.7/Renderbolt-1.0.7-setup.exe)** from the [1.0.7 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.7).
+
+64-bit Windows 10/11. Windows 11 already has WebView2; Windows 10 may need the [Evergreen runtime](https://developer.microsoft.com/microsoft-edge/webview2/). The installer is unsigned, so SmartScreen / Avast may warn on first run.
+
+Hardware encode when the driver is present: **AMD AMF**, **NVIDIA NVENC**, **Intel QSV**. Otherwise CPU (libx264). FFmpeg is bundled.
+
+## Debian / Ubuntu
 
 ```bash
-sudo apt install ./renderbolt_1.0.6_all.deb
+sudo apt install ./renderbolt_1.0.7_all.deb
 ```
 
-Get the file from the [v1.0.6 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.6). Needs Python 3.10+, Tk, Pillow, NumPy, and FFmpeg. On AMD GPUs, install `mesa-va-drivers`.
+Get the file from the [1.0.7 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.7). Needs Python 3.10+, Tk, Pillow, NumPy, and FFmpeg. On AMD GPUs, install `mesa-va-drivers`.
 
 Open **Renderbolt** from the app menu, or run `renderbolt`.
 
-### Windows (1.0.7 / `main`)
-
-Inno Setup installer, 64-bit. Download **Renderbolt-1.0.7-setup.exe** from the [windows workflow artifacts](https://github.com/JMHBM/Renderbolt/actions/workflows/windows.yml) (not on the 1.0.6 GitHub Release yet).
-
-On a Windows 11 machine you can also build it:
-
-```powershell
-python scripts\build-windows.py
-```
-
-That bundles FFmpeg. AMD cards use **AMF**, NVIDIA **NVENC**, Intel **QSV**, with CPU fallback.
-
-## From source (`main` / 1.0.7)
+## From source
 
 ```bash
 sudo apt install python3-tk python3-pil python3-pil.imagetk python3-numpy ffmpeg
@@ -53,7 +48,7 @@ python3 desktop/renderbolt render \
   --look looks/night-drive.json
 ```
 
-Starter looks live in [`looks/`](looks/README.md). Keys **1–6** load them in the studio.
+Starter looks live in [`looks/`](looks/README.md). Keys **1–6** load them in the Linux studio.
 
 ## What it does
 
@@ -62,17 +57,16 @@ Starter looks live in [`looks/`](looks/README.md). Keys **1–6** load them in t
 - 2D or 3D: waveform, EQ bars, circular, liquid
 - Color presets, custom palette, base → tip gradient
 - Place, rotate (0–360°), stretch, and mirror
-- Live preview, then VA-API H.264 on AMD when present
 - 16:9 · 9:16 · 1:1 · 720p / 1080p / 4K · 24 / 30 / 60 fps
 
-### Shortcuts (1.0.7 / `main`)
+### Shortcuts
 
 | Key | Action |
 |---|---|
 | Space | Play / pause |
 | G | Generate MP4 |
 | R | Shuffle look |
-| 1–6 | Starter looks |
+| 1–6 | Starter looks (Linux studio) |
 | S | Save current frame (PNG) |
 | F1 | About |
 | ← → | Seek 2 seconds |
