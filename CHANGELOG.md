@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.9 — unreleased
+
+Cavasik-inspired visualizers, original Renderbolt code (no GPL source vendored).
+
+- **Levels** — stacked spectrum cells
+- **Particles** — one cube per band, riding the amplitude
+- **Spine** — growing squares along the midline
+- **Radial wave** — filled circular spectrum
+- Starter looks: Ladder, Scatter, Vertebra, Orbit
+
 ## 1.0.8 — 2026-08-28
 
 Official Windows release. Debian / Ubuntu `.deb` remains supported. Linux **AppImage** for Fedora / Silverblue.

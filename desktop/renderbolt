@@ -53,10 +53,12 @@ Options:
   --out PATH           Output MP4 (required for render)
   --look PATH          Look JSON (from Save look… or looks/)
   --preset NAME        Starter look: Night Drive, Live Session,
-                       Vinyl, After Hours, Neon Rain, Broadcast
+                       Vinyl, After Hours, Neon Rain, Broadcast,
+                       Ladder, Scatter, Vertebra, Orbit
   --list-presets       Print starter look names and exit
   --mode 2D|3D
-  --style NAME         Waveform, EQ bars, Circular, Liquid waves
+  --style NAME         Waveform, EQ bars, Circular, Liquid waves,
+                       Levels, Particles, Spine, Radial wave
   --theme NAME         Ice, Ember, Forest, Midnight, Mono, Rose,
                        Violet, Gold, Cyan, Crimson, Ocean, Sunset
   --title TEXT
@@ -135,12 +137,25 @@ THEMES = {
     "Ocean": ("#023e6b", "#5ad0ff"),
     "Sunset": ("#c43c08", "#ffd0a0"),
 }
-STYLES = ("Waveform", "EQ bars", "Circular", "Liquid waves")
+STYLES = (
+    "Waveform",
+    "EQ bars",
+    "Circular",
+    "Liquid waves",
+    "Levels",
+    "Particles",
+    "Spine",
+    "Radial wave",
+)
 STYLE_CARDS = (
     ("Waveform", "Waveform", "Amplitude ribbon"),
     ("EQ bars", "EQ bars", "Log-spaced spectrum"),
     ("Circular", "Circular", "Radial ring"),
     ("Liquid waves", "Liquid", "Layered fluid"),
+    ("Levels", "Levels", "Stacked spectrum cells"),
+    ("Particles", "Particles", "Floating cubes"),
+    ("Spine", "Spine", "Growing squares"),
+    ("Radial wave", "Radial", "Filled spectrum ring"),
 )
 BOUNCE = {"Soft": 0.45, "Medium": 1.0, "Hard": 1.45}
 
@@ -222,6 +237,52 @@ STARTER_LOOKS: dict[str, dict] = {
         "grain": 0.05,
         "show_progress": True,
         "aspect": "16:9",
+    },
+    "Ladder": {
+        "mode": "2D",
+        "style": "Levels",
+        "theme": "Ice",
+        "bounce": "Medium",
+        "place": {"x": 0, "y": 0.18, "rot": 0, "sx": 1.1, "sy": 0.95, "mirror": False},
+        "glow": 0.28,
+        "vignette": 0.42,
+        "grain": 0.06,
+        "aspect": "16:9",
+    },
+    "Scatter": {
+        "mode": "2D",
+        "style": "Particles",
+        "theme": "Rose",
+        "bounce": "Hard",
+        "place": {"x": 0, "y": 0.1, "rot": 0, "sx": 1.05, "sy": 1.0, "mirror": False},
+        "glow": 0.4,
+        "vignette": 0.38,
+        "grain": 0.08,
+        "aspect": "16:9",
+    },
+    "Vertebra": {
+        "mode": "3D",
+        "style": "Spine",
+        "theme": "Forest",
+        "bounce": "Medium",
+        "tilt": 42,
+        "alpha": 0.78,
+        "place": {"x": 0, "y": 0.02, "rot": 0, "sx": 1.05, "sy": 1.05, "mirror": False},
+        "glow": 0.48,
+        "vignette": 0.55,
+        "grain": 0.1,
+        "aspect": "16:9",
+    },
+    "Orbit": {
+        "mode": "2D",
+        "style": "Radial wave",
+        "theme": "Ocean",
+        "bounce": "Soft",
+        "place": {"x": 0, "y": 0.0, "rot": 0, "sx": 1.0, "sy": 1.0, "mirror": False},
+        "glow": 0.52,
+        "vignette": 0.6,
+        "grain": 0.07,
+        "aspect": "1:1",
     },
 }
 

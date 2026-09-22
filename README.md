@@ -72,13 +72,15 @@ python3 desktop/renderbolt render \
   --look looks/night-drive.json
 ```
 
-Starter looks live in [`looks/`](looks/README.md). Keys **1–6** load them in the Linux studio.
+Starter looks live in [`looks/`](looks/README.md). Keys **1–6** load the first six in the Linux studio.
+
+Levels, Particles, Spine, and Radial wave are original implementations **inspired by** [Cavasik](https://github.com/TheWisker/Cavasik) (CAVA-based). Cavasik is GPL-3.0; none of its source is vendored here.
 
 ## What it does
 
 - Background still from disk, with beat bounce and edge fade
 - Optional song / artist / album titles
-- 2D or 3D: waveform, EQ bars, circular, liquid
+- 2D or 3D: waveform, EQ bars, circular, liquid, **levels, particles, spine, radial wave**
 - Color presets, custom palette, base → tip gradient
 - Place, rotate (0–360°), stretch, and mirror
 - 16:9 · 9:16 · 1:1 · 720p / 1080p / 4K · 24 / 30 / 60 fps

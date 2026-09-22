@@ -10,6 +10,10 @@ JSON look files Renderbolt can load in the studio (**Load look…**) or from the
 | [after-hours.json](after-hours.json) | 3D liquid, violet |
 | [neon-rain.json](neon-rain.json) | 3D EQ, cyan, 9:16 |
 | [broadcast.json](broadcast.json) | 2D waveform, mono, titles + progress |
+| [ladder.json](ladder.json) | 2D levels, ice, stacked spectrum cells |
+| [scatter.json](scatter.json) | 2D particles, rose |
+| [vertebra.json](vertebra.json) | 3D spine, forest |
+| [orbit.json](orbit.json) | 2D radial wave, ocean, square |
 
 From source:
 
@@ -19,4 +23,4 @@ python3 desktop/renderbolt render \
   --look looks/night-drive.json
 ```
 
-These ship with 1.0.8.
+Keys **1–6** in the Linux studio still load the original six. Ladder, Scatter, Vertebra, and Orbit are extra starters (Cavasik/CAVA-inspired drawing, original code).

@@ -204,6 +204,10 @@
       ["EQ bars","EQ bars","Log-spaced spectrum"],
       ["Circular","Circular","Radial ring"],
       ["Liquid waves","Liquid","Layered fluid"],
+      ["Levels","Levels","Stacked spectrum cells"],
+      ["Particles","Particles","Floating cubes"],
+      ["Spine","Spine","Growing squares"],
+      ["Radial wave","Radial","Filled spectrum ring"],
     ];
     const STARTERS = {
       "Night Drive": {mode:"3D", style:"Waveform", theme:"Midnight", bounce:"Medium", tilt:46, alpha:0.72, place:{x:0,y:-0.18,rot:0,sx:1.15,sy:0.9,mirror:false}, glow:0.58, vignette:0.68, grain:0.14, pulse_hue:36, aspect:"16:9"},
@@ -212,6 +216,10 @@
       "After Hours": {mode:"3D", style:"Liquid waves", theme:"Violet", bounce:"Medium", tilt:38, alpha:0.66, place:{x:0,y:0.12,rot:0,sx:1.2,sy:1.05,mirror:false}, glow:0.5, vignette:0.6, grain:0.1, pulse_hue:24, aspect:"16:9"},
       "Neon Rain": {mode:"3D", style:"EQ bars", theme:"Cyan", bounce:"Hard", tilt:44, place:{x:0,y:0.08,rot:0,sx:1.1,sy:1.25,mirror:false}, glow:0.62, vignette:0.5, grain:0.06, pulse_hue:80, aspect:"9:16"},
       "Broadcast": {mode:"2D", style:"Waveform", theme:"Mono", bounce:"Soft", place:{x:0,y:0.28,rot:0,sx:1.3,sy:0.7,mirror:false}, glow:0.18, vignette:0.35, grain:0.05, aspect:"16:9"},
+      "Ladder": {mode:"2D", style:"Levels", theme:"Ice", bounce:"Medium", place:{x:0,y:0.18,rot:0,sx:1.1,sy:0.95,mirror:false}, glow:0.28, vignette:0.42, grain:0.06, aspect:"16:9"},
+      "Scatter": {mode:"2D", style:"Particles", theme:"Rose", bounce:"Hard", place:{x:0,y:0.1,rot:0,sx:1.05,sy:1.0,mirror:false}, glow:0.4, vignette:0.38, grain:0.08, aspect:"16:9"},
+      "Vertebra": {mode:"3D", style:"Spine", theme:"Forest", bounce:"Medium", tilt:42, alpha:0.78, place:{x:0,y:0.02,rot:0,sx:1.05,sy:1.05,mirror:false}, glow:0.48, vignette:0.55, grain:0.1, aspect:"16:9"},
+      "Orbit": {mode:"2D", style:"Radial wave", theme:"Ocean", bounce:"Soft", place:{x:0,y:0,rot:0,sx:1,sy:1,mirror:false}, glow:0.52, vignette:0.6, grain:0.07, aspect:"1:1"},
     };
     const S = {
       audio:"", cover:"", logo:"", mode:"3D", style:"Waveform", theme:"Ice",
@@ -415,6 +423,50 @@
           const bw=(w*0.82)/n, x=w*0.09+i*bw, bh=h*0.28*v;
           ctx.fillStyle=rgba(mix(base,tip,v), a);
           ctx.fillRect(x+2, h*0.93-bh, bw-4, bh);
+        }
+      } else if(S.style==="Levels"){
+        const n=28, rows=8;
+        for(let i=0;i<n;i++){
+          const v=0.15+0.8*Math.abs(Math.sin(t*2+i*0.3));
+          const q=Math.max(0, Math.round(v*rows));
+          const bw=(w*0.82)/n, x=w*0.09+i*bw, ch=h*0.028, cg=h*0.006;
+          for(let r=0;r<q;r++){
+            ctx.fillStyle=rgba(mix(base,tip,r/Math.max(1,rows-1)), a);
+            ctx.fillRect(x+2, h*0.92-r*(ch+cg)-ch, bw-4, ch);
+          }
+        }
+      } else if(S.style==="Particles"){
+        const n=28, size=Math.max(4,w*0.014);
+        for(let i=0;i<n;i++){
+          const v=0.1+0.85*Math.abs(Math.sin(t*2.4+i*0.33));
+          const cx=w*0.1+(i+0.5)*(w*0.8/n), cy=h*0.88-v*h*0.5;
+          ctx.fillStyle=rgba(mix(base,tip,v), a);
+          ctx.fillRect(cx-size, cy-size, size*2, size*2);
+        }
+      } else if(S.style==="Spine"){
+        const n=16;
+        for(let i=0;i<n;i++){
+          const v=0.12+0.7*Math.abs(Math.sin(t*1.8+i*0.4));
+          const half=v*Math.min(w,h)*0.05;
+          const cx=w*0.1+(i+0.5)*(w*0.8/n), mid=h*0.55;
+          ctx.fillStyle=rgba(mix(base,tip,v), a);
+          ctx.fillRect(cx-half, mid-half, half*2, half*2);
+        }
+      } else if(S.style==="Radial wave"){
+        const cx=w/2, cy=h*0.5, n=48, inner=Math.min(w,h)*0.14;
+        for(let i=0;i<n;i++){
+          const v0=0.2+0.7*Math.abs(Math.sin(t*2.6+i*0.2));
+          const v1=0.2+0.7*Math.abs(Math.sin(t*2.6+(i+1)*0.2));
+          const a0=i/n*Math.PI*2-Math.PI/2, a1=(i+1)/n*Math.PI*2-Math.PI/2;
+          const span=Math.min(w,h)*0.2;
+          ctx.beginPath();
+          ctx.moveTo(cx+Math.cos(a0)*inner, cy+Math.sin(a0)*inner);
+          ctx.lineTo(cx+Math.cos(a1)*inner, cy+Math.sin(a1)*inner);
+          ctx.lineTo(cx+Math.cos(a1)*(inner+v1*span), cy+Math.sin(a1)*(inner+v1*span));
+          ctx.lineTo(cx+Math.cos(a0)*(inner+v0*span), cy+Math.sin(a0)*(inner+v0*span));
+          ctx.closePath();
+          ctx.fillStyle=rgba(mix(base,tip,v0), 0.72*a);
+          ctx.fill();
         }
       } else if(S.style==="Circular"){
         const cx=w/2, cy=h*0.48, n=56;

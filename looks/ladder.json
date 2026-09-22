@@ -1,0 +1,19 @@
+{
+  "name": "Ladder",
+  "mode": "2D",
+  "style": "Levels",
+  "theme": "Ice",
+  "base": "#12305a",
+  "tip": "#9ecbff",
+  "bounce": "Medium",
+  "alpha": 0.75,
+  "place": {"x": 0, "y": 0.18, "rot": 0, "sx": 1.1, "sy": 0.95, "mirror": false},
+  "glow": 0.28,
+  "vignette": 0.42,
+  "grain": 0.06,
+  "show_titles": true,
+  "show_progress": true,
+  "aspect": "16:9",
+  "res": "1080p",
+  "fps": "30"
+}
