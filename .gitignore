@@ -16,6 +16,9 @@ packaging/rpm-root/
 packaging/windows/work/
 packaging/windows/dist/
 packaging/windows/build/
+packaging/linux/cache/
+packaging/linux/AppDir/
+public/downloads/*.AppImage
 
 artifacts/
 attachments/

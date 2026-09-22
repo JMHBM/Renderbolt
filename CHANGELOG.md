@@ -2,8 +2,9 @@
 
 ## 1.0.8 — 2026-08-28
 
-Official Windows release. Debian / Ubuntu `.deb` remains supported.
+Official Windows release. Debian / Ubuntu `.deb` remains supported. Linux **AppImage** for Fedora / Silverblue.
 
+- Type-2 AppImage with static FUSE3 (`Renderbolt-1.0.8-x86_64.AppImage`) — bundled CPython 3.12, Tcl/Tk, FFmpeg
 - 2D export uses the same GPU engine as 3D
 - Cover art stays upright in the MP4
 - Live preview shows the vis, titles, progress bar, and clock

@@ -1,0 +1,28 @@
+name: appimage
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - desktop/**
+      - looks/**
+      - scripts/build-appimage.py
+      - packaging/linux/**
+      - LICENSE
+      - .github/workflows/appimage.yml
+
+jobs:
+  appimage:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build AppImage
+        run: python3 scripts/build-appimage.py
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: Renderbolt-1.0.8-x86_64.AppImage
+          path: public/downloads/Renderbolt-1.0.8-x86_64.AppImage
