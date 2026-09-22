@@ -9,6 +9,8 @@ Cavasik/CAVA, original code). Returns packed RGB24 frames for ffmpeg.
 from __future__ import annotations
 
 import math
+import sys
+import threading
 from typing import Any
 
 import numpy as np
@@ -49,7 +51,11 @@ void main() {
     vec3 h = normalize(l + e);
     float diff = max(dot(n, l), 0.22);
     float spec = pow(max(dot(n, h), 0.0), 36.0);
-    vec3 col = v_col * (0.35 + 0.65 * diff) + v_col * spec * 0.16;
+    float lum = dot(v_col, vec3(0.2126, 0.7152, 0.0722));
+    vec3 col = v_col * (0.42 + 0.58 * diff) + vec3(spec * 0.20);
+    if (lum < 0.28) {
+        col += vec3(0.18, 0.19, 0.21) * (1.0 - lum / 0.28);
+    }
     float fog = smoothstep(6.0, 18.0, length(u_eye - v_pos));
     col = mix(col, u_fog, fog * 0.22);
     f_color = vec4(col, u_alpha);
@@ -145,7 +151,14 @@ def _rotate_z(deg: float) -> np.ndarray:
 
 def _hex_rgb(h: str) -> tuple[float, float, float]:
     h = h.lstrip("#")
-    return int(h[0:2], 16) / 255.0, int(h[2:4], 16) / 255.0, int(h[4:6], 16) / 255.0
+    r, g, b = int(h[0:2], 16) / 255.0, int(h[2:4], 16) / 255.0, int(h[4:6], 16) / 255.0
+    y = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    if y >= 0.22:
+        return r, g, b
+    if y < 1e-4:
+        return 0.22, 0.22, 0.26
+    s = 0.22 / y
+    return min(1.0, r * s), min(1.0, g * s), min(1.0, b * s)
 
 
 def _sample(bands: np.ndarray, i: int, n: int) -> float:
@@ -236,11 +249,13 @@ class VisualEngine3D:
     @staticmethod
     def _context(moderngl: Any) -> Any:
         errors: list[str] = []
-        for kwargs in (
-            {"standalone": True, "require": 330},
-            {"standalone": True, "require": 330, "backend": "egl"},
-            {"standalone": True, "require": 330, "backend": "wgl"},
-        ):
+        attempts: list[dict[str, Any]] = []
+        if sys.platform != "win32":
+            attempts.append({"standalone": True, "require": 330, "backend": "egl"})
+        attempts.append({"standalone": True, "require": 330})
+        if sys.platform == "win32":
+            attempts.append({"standalone": True, "require": 330, "backend": "wgl"})
+        for kwargs in attempts:
             try:
                 return moderngl.create_context(**kwargs)
             except Exception as exc:  # pragma: no cover
@@ -837,11 +852,29 @@ class VisualEngine3D:
 
 def _grad(base, tip, t: float) -> np.ndarray:
     t = float(max(0.0, min(1.0, t)))
-    return np.array(base, dtype=np.float32) * (1.0 - t) + np.array(tip, dtype=np.float32) * t
+    c = np.array(base, dtype=np.float32) * (1.0 - t) + np.array(tip, dtype=np.float32) * t
+    y = float(0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2])
+    if y < 0.22:
+        if y < 1e-4:
+            c = np.array([0.22, 0.22, 0.26], dtype=np.float32)
+        else:
+            c = np.clip(c * (0.22 / y), 0.0, 1.0)
+    return c
 
 
 def try_create(width: int, height: int) -> VisualEngine3D | None:
-    try:
-        return VisualEngine3D(width, height)
-    except Exception:
+    box: list[Any] = []
+
+    def boot() -> None:
+        try:
+            box.append(VisualEngine3D(width, height))
+        except Exception:
+            box.append(None)
+
+    worker = threading.Thread(target=boot, daemon=True, name="rb-gl-boot")
+    worker.start()
+    worker.join(6.0)
+    if worker.is_alive() or not box:
         return None
+    eng = box[0]
+    return eng if isinstance(eng, VisualEngine3D) else None

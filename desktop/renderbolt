@@ -33,7 +33,7 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
 APP_NAME = "Renderbolt"
-VERSION = "1.0.9"
+VERSION = "1.0.10"
 AUTHOR = "JMHBM, Grok, and Jan"
 LICENSE = "CC BY 4.0"
 
@@ -969,26 +969,36 @@ def decode_audio(path: str, sr: int = 44100) -> tuple["np.ndarray", int]:
         raise RuntimeError("python3-numpy is required")
     if not ffmpeg_bin():
         raise RuntimeError("ffmpeg is required to read audio")
-    raw = subprocess.check_output(
-        [
-            ffmpeg_bin() or "ffmpeg",
-            "-v",
-            "error",
-            "-i",
-            path,
-            "-f",
-            "f32le",
-            "-acodec",
-            "pcm_f32le",
-            "-ac",
-            "1",
-            "-ar",
-            str(sr),
-            "pipe:1",
-        ],
-        **_popen_kw(),
-    )
-    samples = np.frombuffer(raw, dtype=np.float32)
+    try:
+        proc = subprocess.run(
+            [
+                ffmpeg_bin() or "ffmpeg",
+                "-v",
+                "error",
+                "-i",
+                path,
+                "-f",
+                "f32le",
+                "-acodec",
+                "pcm_f32le",
+                "-ac",
+                "1",
+                "-ar",
+                str(sr),
+                "pipe:1",
+            ],
+            capture_output=True,
+            timeout=180,
+            **_popen_kw(),
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("ffmpeg timed out decoding audio") from exc
+    if proc.returncode != 0:
+        err = (proc.stderr or b"").decode("utf-8", "replace").strip()
+        raise RuntimeError(err[:400] if err else "ffmpeg could not decode audio")
+    samples = np.frombuffer(proc.stdout, dtype=np.float32)
+    if samples.size < 64:
+        raise RuntimeError("audio decode produced no samples")
     return samples, sr
 
 
@@ -1074,6 +1084,19 @@ def make_demo(sr: int = 44100, seconds: float = 16.0, bpm: float = 124.0) -> tup
     y += 0.08 * np.sin(2 * np.pi * 55 * t) * (0.5 + 0.5 * np.sin(2 * np.pi * t / 8))
     peak = float(np.max(np.abs(y))) or 1.0
     return (y / peak * 0.9).astype(np.float32), sr
+
+
+def fit_cover(cover: Image.Image, w: int, h: int) -> Image.Image:
+    """Cover-crop a still so it fills the frame (no letterbox, no stretch)."""
+    cw, ch = cover.size
+    if cw <= 0 or ch <= 0:
+        return Image.new("RGB", (w, h), (12, 12, 16))
+    scale = max(w / cw, h / ch)
+    nw, nh = max(1, int(cw * scale)), max(1, int(ch * scale))
+    resized = cover.resize((nw, nh), Image.Resampling.BILINEAR)
+    x = max(0, (nw - w) // 2)
+    y = max(0, (nh - h) // 2)
+    return resized.crop((x, y, x + w, y + h))
 
 
 def cover_draw(base: Image.Image, cover: Image.Image, zoom: float, pulse: float, w: int | None = None, h: int | None = None) -> None:
@@ -1296,6 +1319,7 @@ def run_export(
         raise RuntimeError("Install ffmpeg to decode audio and encode MP4.")
     look = merge_look(look)
     progress = progress or (lambda _msg, _pct: None)
+    progress("Decoding audio…", 0)
     samples, sr = decode_audio(audio_path)
     duration = samples.size / sr
     analyzer = Analyzer(samples, sr)
@@ -1335,6 +1359,8 @@ def run_export(
             gl = getattr(engine, "renderer", "") or ""
             if gl:
                 progress(f"GL {gl}", 0)
+        else:
+            progress("No GPU compositor — drawing on CPU", 0)
     attempts: list[tuple[str, list[str], dict | None]] = []
     if hw:
         attempts.append(
@@ -1508,6 +1534,7 @@ class App(tk.Tk):
         self._preview_ms = 0.0
         self._idle_preview_job: str | None = None
         self._suspend_preview = False
+        self._preview_layout = None
         self._cover_key: tuple | None = None
         self._cover_small: Image.Image | None = None
         self.cfg = load_config()
@@ -1791,6 +1818,7 @@ class App(tk.Tk):
         stage.pack(fill="both", expand=True)
         self.preview = tk.Label(stage.body, bg="#0a0a0b", bd=0)
         self.preview.pack(fill="both", expand=True)
+        self.preview.bind("<Configure>", self._on_preview_configure)
 
         transport = RoundedCard(right, radius=16, fill=CARD, outline=BORDER, pad=12)
         transport.pack(fill="x", pady=(14, 0))
@@ -2197,7 +2225,7 @@ class App(tk.Tk):
             pass
 
     def _play_watch(self) -> None:
-        """Advance the clock / audio only. Never redraw the preview image."""
+        """Advance the clock and redraw the live preview."""
         if not self._playing:
             self._preview_job = None
             return
@@ -2214,6 +2242,7 @@ class App(tk.Tk):
                 self._stop_audio()
                 self._preview_job = None
                 self._sync_time_label()
+                self._render_preview()
                 return
         elif self._player is not None and self._player.poll() is not None:
             if self.loop_preview.get():
@@ -2225,9 +2254,15 @@ class App(tk.Tk):
                 self.play_btn.configure(text="▶")
                 self._preview_job = None
                 self._sync_time_label()
+                self._render_preview()
                 return
         self._sync_time_label()
-        self._preview_job = self.after(250, self._play_watch)
+        t0 = time.perf_counter()
+        self._render_preview()
+        dt_ms = (time.perf_counter() - t0) * 1000.0
+        self._preview_ms = (0.6 * self._preview_ms + 0.4 * dt_ms) if self._preview_ms else dt_ms
+        delay = 33 if self._preview_ms < 40 else 50 if self._preview_ms < 80 else 90
+        self._preview_job = self.after(int(delay), self._play_watch)
 
     def _watch_preview_vars(self) -> None:
         skip = {"time_var", "status"}
@@ -2241,16 +2276,31 @@ class App(tk.Tk):
                 except tk.TclError:
                     pass
 
+    def _on_preview_configure(self, evt) -> None:
+        if evt.widget is not self.preview:
+            return
+        if evt.width < 32 or evt.height < 32:
+            return
+        key = (evt.width, evt.height, self.aspect_var.get())
+        if key == getattr(self, "_preview_layout", None):
+            return
+        self._preview_layout = key
+        self._cover_key = None
+        self._mark_preview_dirty()
+
     def _render_preview(self) -> None:
         if self.cover is None or self._analyzer is None:
             return
         try:
-            w, h = self._preview_wh()
+            dw, dh = self._preview_wh()
+            cap = 720 if self._preview_ms > 80 else 960
+            scale = min(1.0, cap / max(dw, dh, 1))
+            rw, rh = max(160, int(dw * scale)), max(90, int(dh * scale))
             analysis = self._analyzer.at(self._t0, 1 / 24, float(self.sens_var.get()))
             theme = self._theme_pair()
-            cover = self._cover_for_preview(w, h)
+            cover = self._cover_for_preview(rw, rh)
             img = cover.convert("RGBA")
-            img = Image.alpha_composite(img, Image.new("RGBA", (w, h), (10, 10, 11, 70)))
+            img = Image.alpha_composite(img, Image.new("RGBA", (rw, rh), (10, 10, 11, 70)))
             try:
                 from preview3d import draw_lite
             except ImportError:
@@ -2277,33 +2327,37 @@ class App(tk.Tk):
                 g["title_scale"],
                 g["title_pos"],
             )
+            if (rw, rh) != (dw, dh):
+                img = img.resize((dw, dh), Image.Resampling.BILINEAR)
             self.preview_imgtk = ImageTk.PhotoImage(img.convert("RGB"))
             self.preview.configure(image=self.preview_imgtk)
         except Exception:
-            pass
+            _write_vaapi_log("preview failed\n" + traceback.format_exc())
 
     def _cover_for_preview(self, w: int, h: int) -> Image.Image:
         key = (id(self.cover), w, h)
         if self._cover_key == key and self._cover_small is not None:
             return self._cover_small
         src = self.cover or Image.new("RGB", (w, h), (12, 12, 16))
-        self._cover_small = src.convert("RGB").resize((w, h), Image.Resampling.BILINEAR)
+        self._cover_small = fit_cover(src.convert("RGB"), w, h)
         self._cover_key = key
         return self._cover_small
 
     def _preview_wh(self) -> tuple[int, int]:
-        pw = max(320, int(self.preview.winfo_width() or 640))
-        ph = max(180, int(self.preview.winfo_height() or 360))
-        ar = ASPECTS.get(self.aspect_var.get(), (16, 9))
-        if pw / ph > ar[0] / ar[1]:
-            pw = int(ph * ar[0] / ar[1])
+        try:
+            self.update_idletasks()
+        except tk.TclError:
+            pass
+        pw = int(self.preview.winfo_width() or 0)
+        ph = int(self.preview.winfo_height() or 0)
+        if pw < 32 or ph < 32:
+            pw, ph = 640, 360
+        arw, arh = ASPECTS.get(self.aspect_var.get(), (16, 9))
+        if pw / max(ph, 1) > arw / arh:
+            pw = int(ph * arw / arh)
         else:
-            ph = int(pw * ar[1] / ar[0])
-        cap = 400 if WIN else 560
-        if self._preview_ms > 90:
-            cap = 360
-        scale = min(1.0, cap / max(pw, ph, 1))
-        return max(160, int(pw * scale)), max(160, int(ph * scale))
+            ph = int(pw * arh / arw)
+        return max(160, pw), max(90, ph)
 
     def _theme_pair(self) -> tuple[str, str]:
         return (self.base_color.get() or "#156a96", self.tip_color.get() or "#b8ecff")
@@ -2399,23 +2453,23 @@ class App(tk.Tk):
         self._exporting = True
         self.gen_btn.configure(text="  Rendering…  ", cursor="arrow")
         self.status.set("Starting export…")
-        last_ui = [0.0]
+        self._export_ui = {"msg": "Starting export…", "pct": 0.0}
 
         def progress(msg: str, pct: float) -> None:
-            now = time.monotonic()
-            if now - last_ui[0] < 0.08 and pct < 99:
+            self._export_ui = {"msg": str(msg), "pct": float(pct or 0)}
+
+        def pump() -> None:
+            if not getattr(self, "_exporting", False):
                 return
-            last_ui[0] = now
-
-            def apply(m: str = msg, p: float = pct) -> None:
-                try:
-                    self.status.set(m)
-                    if p:
-                        self.pbar["value"] = p
-                except tk.TclError:
-                    pass
-
-            self.after(0, apply)
+            ui = getattr(self, "_export_ui", {})
+            try:
+                if ui.get("msg"):
+                    self.status.set(ui["msg"])
+                if ui.get("pct"):
+                    self.pbar["value"] = ui["pct"]
+            except tk.TclError:
+                return
+            self.after(80, pump)
 
         def work() -> None:
             try:
@@ -2435,6 +2489,7 @@ class App(tk.Tk):
                 _write_vaapi_log("generate failed\n" + traceback.format_exc())
                 self.after(0, lambda e=exc: self._generate_done(dest, "", e, was_playing))
 
+        self.after(80, pump)
         threading.Thread(target=work, daemon=True, name="renderbolt-export").start()
 
     def _generate_done(self, dest: str, label: str, err: Exception | None, was_playing: bool) -> None:

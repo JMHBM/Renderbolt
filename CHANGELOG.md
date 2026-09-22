@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.10 — 2026-09-22
+
+Linux **AppImage** studio fixes (Windows / Debian remain 1.0.8).
+
+- Preview fills the stage (cover-crop, no 560px cap)
+- Preview is live while playing
+- Dark / black vis colors stay readable (lift + halo)
+- Export no longer hangs on GPU init — 6s timeout, then CPU compositor
+- Status updates while decoding / encoding
+- Type-2 AppImage `Renderbolt-1.0.10-x86_64.AppImage`
+
 ## 1.0.9 — 2026-09-22
 
 Linux **AppImage** only. Windows installer and Debian `.deb` remain 1.0.8.

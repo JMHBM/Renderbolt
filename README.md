@@ -4,7 +4,7 @@ Cinematic audio visualizer. Drop in a song and a still, pick a look, and export 
 
 Designed by **JMHBM**. Built with **Grok** (Harper, Benjamin, and Lucas / xAI) and **Jan-4B-Base-Instruct** (Menlo Labs Research). Copyright equally shared. [CC BY 4.0](LICENSE).
 
-**Latest: [1.0.9](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.9)** · Linux AppImage · Windows installer and Debian `.deb` still [1.0.8](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.8)
+**Latest: [1.0.10](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.10)** · Linux AppImage · Windows installer and Debian `.deb` still [1.0.8](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.8)
 
 [![check](https://github.com/JMHBM/Renderbolt/actions/workflows/check.yml/badge.svg)](https://github.com/JMHBM/Renderbolt/actions/workflows/check.yml)
 [![windows](https://github.com/JMHBM/Renderbolt/actions/workflows/windows.yml/badge.svg)](https://github.com/JMHBM/Renderbolt/actions/workflows/windows.yml)
@@ -35,25 +35,25 @@ Open **Renderbolt** from the app menu, or run `renderbolt`.
 
 ## Fedora / Silverblue (AppImage)
 
-Download **[Renderbolt-1.0.9-x86_64.AppImage](https://github.com/JMHBM/Renderbolt/releases/download/1.0.9/Renderbolt-1.0.9-x86_64.AppImage)** from the [1.0.9 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.9).
+Download **[Renderbolt-1.0.10-x86_64.AppImage](https://github.com/JMHBM/Renderbolt/releases/download/1.0.10/Renderbolt-1.0.10-x86_64.AppImage)** from the [1.0.10 release](https://github.com/JMHBM/Renderbolt/releases/tag/1.0.10).
 
 Type-2 AppImage with FUSE3 statically linked. No Flatpak sandbox, no libfuse2. Python, Tcl/Tk, NumPy, Pillow, ModernGL, and FFmpeg are inside the file. The host only needs libGL / libX11.
 
 ```bash
-chmod +x Renderbolt-1.0.9-x86_64.AppImage
-./Renderbolt-1.0.9-x86_64.AppImage
+chmod +x Renderbolt-1.0.10-x86_64.AppImage
+./Renderbolt-1.0.10-x86_64.AppImage
 ```
 
 If FUSE is blocked:
 
 ```bash
-./Renderbolt-1.0.9-x86_64.AppImage --appimage-extract-and-run
+./Renderbolt-1.0.10-x86_64.AppImage --appimage-extract-and-run
 ```
 
 Headless:
 
 ```bash
-./Renderbolt-1.0.9-x86_64.AppImage render --audio song.mp3 --cover art.jpg --out out.mp4
+./Renderbolt-1.0.10-x86_64.AppImage render --audio song.mp3 --cover art.jpg --out out.mp4
 ```
 
 ## From source

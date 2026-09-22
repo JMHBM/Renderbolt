@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build Renderbolt-1.0.9-x86_64.AppImage (type-2, static FUSE3 runtime).
+"""Build Renderbolt-1.0.10-x86_64.AppImage (type-2, static FUSE3 runtime).
 
 Bundles CPython 3.12 + Tcl/Tk, Pillow, NumPy, ModernGL, and a static FFmpeg.
 Host only needs libGL / libX11 (already on Fedora and Silverblue).
@@ -19,8 +19,8 @@ from urllib.request import urlopen
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / "packaging" / "linux" / "cache"
 STAGE = ROOT / "packaging" / "linux" / "AppDir"
-OUT = ROOT / "public" / "downloads" / "Renderbolt-1.0.9-x86_64.AppImage"
-VERSION = "1.0.9"
+OUT = ROOT / "public" / "downloads" / "Renderbolt-1.0.10-x86_64.AppImage"
+VERSION = "1.0.10"
 
 PYTHON_URL = (
     "https://github.com/astral-sh/python-build-standalone/releases/download/"
@@ -46,7 +46,7 @@ Terminal=false
 Categories=AudioVideo;Audio;Video;
 StartupNotify=true
 StartupWMClass=Renderbolt
-X-AppImage-Version=1.0.9
+X-AppImage-Version=1.0.10
 """
 
 APPRUN = """#!/bin/sh

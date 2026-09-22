@@ -64,6 +64,9 @@ jobs:
           silent = {"bands": np.zeros(32, dtype=np.float32), "time": np.zeros(8, dtype=np.float32), "pulse": 0.0}
           img = Image.new("RGBA", (64, 36), (0, 0, 0, 255))
           preview3d.draw_lite(img, silent, "Levels", theme, 0.8, {})
+          dark = Image.new("RGBA", (320, 180), (10, 10, 11, 255))
+          preview3d.draw_lite(dark, analysis, "Waveform", ("#000000", "#111111"), 0.95, place)
+          assert max(dark.getextrema()[i][1] for i in range(3)) > 40, "dark waveform invisible"
           print("styles-ok", ",".join(styles))
           PY
 

@@ -8,9 +8,29 @@ from typing import Any
 from PIL import Image, ImageDraw, ImageFilter
 
 
+def _luma(rgb: tuple[int, int, int]) -> float:
+    return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+
+
+def _lift(rgb: tuple[int, int, int], floor: float = 56.0) -> tuple[int, int, int]:
+    """Keep dark vis colors readable on a dim cover."""
+    y = _luma(rgb)
+    if y >= floor:
+        return rgb
+    if y < 1:
+        f = int(floor)
+        return (f, f, min(255, f + 10))
+    s = floor / y
+    return (
+        min(255, int(rgb[0] * s)),
+        min(255, int(rgb[1] * s)),
+        min(255, int(rgb[2] * s)),
+    )
+
+
 def _hex(h: str) -> tuple[int, int, int]:
     h = h.lstrip("#")
-    return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return _lift((int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)))
 
 
 def _rgba(rgb: tuple[int, int, int], a: float) -> tuple[int, int, int, int]:
@@ -19,11 +39,27 @@ def _rgba(rgb: tuple[int, int, int], a: float) -> tuple[int, int, int, int]:
 
 def _mix(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> tuple[int, int, int]:
     t = max(0.0, min(1.0, t))
-    return (
-        int(a[0] + (b[0] - a[0]) * t),
-        int(a[1] + (b[1] - a[1]) * t),
-        int(a[2] + (b[2] - a[2]) * t),
+    return _lift(
+        (
+            int(a[0] + (b[0] - a[0]) * t),
+            int(a[1] + (b[1] - a[1]) * t),
+            int(a[2] + (b[2] - a[2]) * t),
+        )
     )
+
+
+def _line(
+    draw: ImageDraw.ImageDraw,
+    pts: list,
+    col: tuple[int, int, int],
+    a: float,
+    width: int = 3,
+) -> None:
+    if len(pts) < 2:
+        return
+    if _luma(col) < 110:
+        draw.line(pts, fill=_rgba((228, 232, 238), min(1.0, a * 0.8)), width=max(width + 3, 5))
+    draw.line(pts, fill=_rgba(col, a), width=width)
 
 
 def _place_pt(
@@ -379,14 +415,14 @@ def _draw_2d(
         for i in range(n + 1):
             ang = i / n * math.tau - math.pi / 2
             ring.append(P(cx + math.cos(ang) * inner, cy + math.sin(ang) * inner))
-        draw.line([(int(p[0]), int(p[1])) for p in ring], fill=_rgba(tip, 0.85 * a), width=3)
+        _line(draw, [(int(p[0]), int(p[1])) for p in ring], tip, 0.85 * a, 3)
         for i in range(n):
             v = float(bands[int(i / n * len(bands)) % len(bands)])
             ang = i / n * math.tau - math.pi / 2
             length = inner + max(8, v * max_len)
             p0 = P(cx + math.cos(ang) * inner, cy + math.sin(ang) * inner)
             p1 = P(cx + math.cos(ang) * length, cy + math.sin(ang) * length)
-            draw.line([p0, p1], fill=_rgba(_mix(base, tip, v), (0.45 + v * 0.55) * a), width=3)
+            _line(draw, [p0, p1], _mix(base, tip, v), (0.45 + v * 0.55) * a, 3)
     elif style == "Liquid waves":
         pts_n = 48
         for layer, (amp, yf, aa, use_tip) in enumerate(
@@ -421,7 +457,7 @@ def _draw_2d(
         poly = top + list(reversed(bot))
         if len(poly) > 4:
             draw.polygon([(int(p[0]), int(p[1])) for p in poly], fill=_rgba(base, 0.55 * a))
-            draw.line([(int(p[0]), int(p[1])) for p in top], fill=_rgba(tip, 0.95 * a), width=3)
+            _line(draw, [(int(p[0]), int(p[1])) for p in top], tip, 0.95 * a, 3)
 
 
 def draw_lite(
@@ -530,7 +566,7 @@ def draw_lite(
             r0, r1 = inner, inner + v * min(w, h) * 0.2
             p0 = P(cx + math.cos(ang) * r0, cy + math.sin(ang) * r0)
             p1 = P(cx + math.cos(ang) * r1, cy + math.sin(ang) * r1)
-            draw.line([p0, p1], fill=_rgba(_mix(base, tip, v), a), width=3)
+            _line(draw, [p0, p1], _mix(base, tip, v), a, 3)
     elif style == "Liquid waves":
         pts = 40
         poly = [P(0, h), P(0, h * 0.7)]
@@ -553,6 +589,6 @@ def draw_lite(
                 x = w * 0.08 + (i / (n - 1)) * w * 0.84
                 pts.append(P(x, mid - v * amp))
         if len(pts) > 1:
-            draw.line(pts, fill=_rgba(tip, a), width=3)
+            _line(draw, pts, tip, a, 4)
     img.alpha_composite(overlay)
 
