@@ -1,0 +1,18 @@
+{
+  "name": "Scatter",
+  "mode": "2D",
+  "style": "Particles",
+  "theme": "Rose",
+  "base": "#8a1848",
+  "tip": "#ff9ec0",
+  "bounce": "Hard",
+  "alpha": 0.75,
+  "place": {"x": 0, "y": 0.1, "rot": 0, "sx": 1.05, "sy": 1.0, "mirror": false},
+  "glow": 0.4,
+  "vignette": 0.38,
+  "grain": 0.08,
+  "show_titles": true,
+  "aspect": "16:9",
+  "res": "1080p",
+  "fps": "30"
+}

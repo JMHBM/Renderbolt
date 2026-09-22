@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """ModernGL 3D visualizer for Renderbolt.
 
-Renders isometric bars, a waveform ribbon, a circular halo, and a liquid
-terrain mesh. Returns packed RGB24 frames for the VA-API ffmpeg pipe.
+Renders isometric bars, a waveform ribbon, a circular halo, a liquid
+terrain mesh, plus Levels / Particles / Spine / Radial wave (inspired by
+Cavasik/CAVA, original code). Returns packed RGB24 frames for ffmpeg.
 """
 
 from __future__ import annotations
@@ -145,6 +146,25 @@ def _rotate_z(deg: float) -> np.ndarray:
 def _hex_rgb(h: str) -> tuple[float, float, float]:
     h = h.lstrip("#")
     return int(h[0:2], 16) / 255.0, int(h[2:4], 16) / 255.0, int(h[4:6], 16) / 255.0
+
+
+def _sample(bands: np.ndarray, i: int, n: int) -> float:
+    if bands.size == 0:
+        return 0.0
+    if n <= 1:
+        return float(bands[0])
+    idx = int(round(i / max(1, n - 1) * (len(bands) - 1)))
+    return float(bands[max(0, min(len(bands) - 1, idx))])
+
+
+def _quad_xy(x0: float, y0: float, x1: float, y1: float, z: float = 0.0) -> np.ndarray:
+    return np.array(
+        [
+            [x0, y0, z], [x1, y0, z], [x1, y1, z],
+            [x0, y0, z], [x1, y1, z], [x0, y1, z],
+        ],
+        dtype=np.float32,
+    )
 
 
 def _cube() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -370,6 +390,14 @@ class VisualEngine3D:
             pos, nrm, col = self._mesh_halo(bands, pulse, primary, secondary)
         elif style == "Liquid waves":
             pos, nrm, col = self._mesh_terrain(bands, t, primary, secondary)
+        elif style == "Levels":
+            pos, nrm, col = self._mesh_levels(bands, primary, secondary)
+        elif style == "Particles":
+            pos, nrm, col = self._mesh_particles(bands, primary, secondary)
+        elif style == "Spine":
+            pos, nrm, col = self._mesh_spine(bands, primary, secondary)
+        elif style == "Radial wave":
+            pos, nrm, col = self._mesh_radial_wave(bands, pulse, primary, secondary)
         else:
             pos, nrm, col = self._mesh_ribbon(td, bands, t, primary, secondary)
 
@@ -403,6 +431,14 @@ class VisualEngine3D:
             pos, nrm, col = self._mesh_2d_circular(bands, pulse, primary, secondary)
         elif style == "Liquid waves":
             pos, nrm, col = self._mesh_2d_liquid(bands, t, primary, secondary)
+        elif style == "Levels":
+            pos, nrm, col = self._mesh_2d_levels(bands, primary, secondary)
+        elif style == "Particles":
+            pos, nrm, col = self._mesh_2d_particles(bands, primary, secondary)
+        elif style == "Spine":
+            pos, nrm, col = self._mesh_2d_spine(bands, primary, secondary)
+        elif style == "Radial wave":
+            pos, nrm, col = self._mesh_2d_radial(bands, pulse, primary, secondary)
         else:
             pos, nrm, col = self._mesh_2d_wave(td, primary, secondary)
 
@@ -424,6 +460,92 @@ class VisualEngine3D:
                 dtype=np.float32,
             )
             c = _grad(primary, secondary, 0.15 + v * 0.85)
+            pos.append(p)
+            nrm.append(np.repeat(front.reshape(1, 3), 6, axis=0))
+            col.append(np.repeat(c.reshape(1, 3), 6, axis=0))
+        return np.concatenate(pos), np.concatenate(nrm), np.concatenate(col).astype(np.float32)
+
+    def _mesh_2d_levels(self, bands: np.ndarray, primary, secondary):
+        n, rows = 28, 10
+        pos, nrm, col = [], [], []
+        front = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+        span, gap = 1.72, 0.012
+        bw = span / n - gap
+        cell_h, cell_gap = 0.072, 0.01
+        y_base = -0.90
+        for i in range(n):
+            v = _sample(bands, i, n)
+            q = max(0, min(rows, int(round(v * rows))))
+            x0 = -0.86 + i * (span / n)
+            x1 = x0 + bw
+            for r in range(q):
+                y0 = y_base + r * (cell_h + cell_gap)
+                y1 = y0 + cell_h
+                c = _grad(primary, secondary, 0.12 + (r / max(1, rows - 1)) * 0.88)
+                pos.append(_quad_xy(x0, y0, x1, y1))
+                nrm.append(np.repeat(front.reshape(1, 3), 6, axis=0))
+                col.append(np.repeat(c.reshape(1, 3), 6, axis=0))
+        if not pos:
+            pos.append(_quad_xy(-0.02, -0.9, 0.02, -0.88))
+            nrm.append(np.repeat(front.reshape(1, 3), 6, axis=0))
+            col.append(np.repeat(np.array(primary, dtype=np.float32).reshape(1, 3), 6, axis=0))
+        return np.concatenate(pos), np.concatenate(nrm), np.concatenate(col).astype(np.float32)
+
+    def _mesh_2d_particles(self, bands: np.ndarray, primary, secondary):
+        n = 36
+        pos, nrm, col = [], [], []
+        front = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+        span = 1.72
+        size = 0.038
+        for i in range(n):
+            v = _sample(bands, i, n)
+            cx = -0.86 + (i + 0.5) * (span / n)
+            cy = -0.86 + v * 1.55
+            c = _grad(primary, secondary, 0.2 + v * 0.8)
+            pos.append(_quad_xy(cx - size, cy - size, cx + size, cy + size))
+            nrm.append(np.repeat(front.reshape(1, 3), 6, axis=0))
+            col.append(np.repeat(c.reshape(1, 3), 6, axis=0))
+        return np.concatenate(pos), np.concatenate(nrm), np.concatenate(col).astype(np.float32)
+
+    def _mesh_2d_spine(self, bands: np.ndarray, primary, secondary):
+        n = 22
+        pos, nrm, col = [], [], []
+        front = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+        span = 1.70
+        for i in range(n):
+            v = max(0.06, _sample(bands, i, n))
+            half = v * 0.11
+            cx = -0.85 + (i + 0.5) * (span / n)
+            c = _grad(primary, secondary, v)
+            pos.append(_quad_xy(cx - half, -half, cx + half, half))
+            nrm.append(np.repeat(front.reshape(1, 3), 6, axis=0))
+            col.append(np.repeat(c.reshape(1, 3), 6, axis=0))
+        return np.concatenate(pos), np.concatenate(nrm), np.concatenate(col).astype(np.float32)
+
+    def _mesh_2d_radial(self, bands: np.ndarray, pulse: float, primary, secondary):
+        n = 72
+        pos, nrm, col = [], [], []
+        front = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+        inner = 0.18 + pulse * 0.02
+        for i in range(n):
+            v0 = _sample(bands, i, n)
+            v1 = _sample(bands, (i + 1) % n, n)
+            a0 = i / n * math.tau - math.pi / 2
+            a1 = (i + 1) / n * math.tau - math.pi / 2
+            r0, r1 = inner + v0 * 0.42, inner + v1 * 0.42
+            c0, s0, c1, s1 = math.cos(a0), math.sin(a0), math.cos(a1), math.sin(a1)
+            p = np.array(
+                [
+                    [c0 * inner, s0 * inner, 0],
+                    [c1 * inner, s1 * inner, 0],
+                    [c1 * r1, s1 * r1, 0],
+                    [c0 * inner, s0 * inner, 0],
+                    [c1 * r1, s1 * r1, 0],
+                    [c0 * r0, s0 * r0, 0],
+                ],
+                dtype=np.float32,
+            )
+            c = _grad(primary, secondary, 0.25 + 0.75 * v0)
             pos.append(p)
             nrm.append(np.repeat(front.reshape(1, 3), 6, axis=0))
             col.append(np.repeat(c.reshape(1, 3), 6, axis=0))
@@ -532,6 +654,91 @@ class VisualEngine3D:
             np.concatenate(nrm_list),
             np.concatenate(col_list).astype(np.float32),
         )
+
+    def _mesh_levels(self, bands: np.ndarray, primary, secondary):
+        n, rows = 24, 8
+        cube_p, cube_n = self._cube_pos, self._cube_n
+        pos_list, nrm_list, col_list = [], [], []
+        for i in range(n):
+            v = _sample(bands, i, n)
+            q = max(0, min(rows, int(round(v * rows))))
+            x = -4.2 + i * (8.4 / max(1, n - 1))
+            w, d, ch, gap = 0.22, 0.28, 0.28, 0.06
+            for r in range(q):
+                y = r * (ch + gap)
+                p = cube_p * np.array([w, ch, d], dtype=np.float32) + np.array(
+                    [x - w * 0.5, y, -d * 0.5], dtype=np.float32
+                )
+                c = _grad(primary, secondary, 0.12 + (r / max(1, rows - 1)) * 0.88)
+                pos_list.append(p)
+                nrm_list.append(cube_n)
+                col_list.append(np.repeat(c.reshape(1, 3), p.shape[0], axis=0))
+        if not pos_list:
+            p = cube_p * 0.12
+            pos_list.append(p)
+            nrm_list.append(cube_n)
+            col_list.append(np.repeat(np.array(primary, dtype=np.float32).reshape(1, 3), p.shape[0], axis=0))
+        return np.concatenate(pos_list), np.concatenate(nrm_list), np.concatenate(col_list).astype(np.float32)
+
+    def _mesh_particles(self, bands: np.ndarray, primary, secondary):
+        n = 32
+        cube_p, cube_n = self._cube_pos, self._cube_n
+        pos_list, nrm_list, col_list = [], [], []
+        size = 0.22
+        for i in range(n):
+            v = _sample(bands, i, n)
+            x = -4.4 + i * (8.8 / max(1, n - 1))
+            y = 0.15 + v * 3.2
+            p = cube_p * size + np.array([x - size * 0.5, y, -size * 0.5], dtype=np.float32)
+            c = _grad(primary, secondary, 0.2 + v * 0.8)
+            pos_list.append(p)
+            nrm_list.append(cube_n)
+            col_list.append(np.repeat(c.reshape(1, 3), p.shape[0], axis=0))
+        return np.concatenate(pos_list), np.concatenate(nrm_list), np.concatenate(col_list).astype(np.float32)
+
+    def _mesh_spine(self, bands: np.ndarray, primary, secondary):
+        n = 20
+        cube_p, cube_n = self._cube_pos, self._cube_n
+        pos_list, nrm_list, col_list = [], [], []
+        for i in range(n):
+            v = max(0.08, _sample(bands, i, n))
+            s = 0.18 + v * 0.95
+            x = -4.2 + i * (8.4 / max(1, n - 1))
+            p = cube_p * s + np.array([x - s * 0.5, 0.4 - s * 0.5, -s * 0.5], dtype=np.float32)
+            c = _grad(primary, secondary, v)
+            pos_list.append(p)
+            nrm_list.append(cube_n)
+            col_list.append(np.repeat(c.reshape(1, 3), p.shape[0], axis=0))
+        return np.concatenate(pos_list), np.concatenate(nrm_list), np.concatenate(col_list).astype(np.float32)
+
+    def _mesh_radial_wave(self, bands: np.ndarray, pulse: float, primary, secondary):
+        n = 64
+        inner = 1.35 + pulse * 0.08
+        pos, nrm, col = [], [], []
+        up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+        for i in range(n):
+            v0 = _sample(bands, i, n)
+            v1 = _sample(bands, (i + 1) % n, n)
+            a0 = i / n * math.tau - math.pi / 2
+            a1 = (i + 1) / n * math.tau - math.pi / 2
+            r0, r1 = inner + v0 * 1.7, inner + v1 * 1.7
+            y = 0.35
+            p = np.array(
+                [
+                    [math.cos(a0) * inner, y, math.sin(a0) * inner],
+                    [math.cos(a1) * inner, y, math.sin(a1) * inner],
+                    [math.cos(a1) * r1, y, math.sin(a1) * r1],
+                    [math.cos(a0) * inner, y, math.sin(a0) * inner],
+                    [math.cos(a1) * r1, y, math.sin(a1) * r1],
+                    [math.cos(a0) * r0, y, math.sin(a0) * r0],
+                ],
+                dtype=np.float32,
+            )
+            c = _grad(primary, secondary, 0.2 + v0 * 0.8)
+            pos.append(p)
+            nrm.append(np.repeat(up.reshape(1, 3), 6, axis=0))
+            col.append(np.repeat(c.reshape(1, 3), 6, axis=0))
+        return np.concatenate(pos), np.concatenate(nrm), np.concatenate(col).astype(np.float32)
 
     def _mesh_ribbon(self, td: np.ndarray, bands: np.ndarray, t: float, primary, secondary):
         samples = 160

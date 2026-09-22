@@ -1,0 +1,18 @@
+{
+  "name": "Orbit",
+  "mode": "2D",
+  "style": "Radial wave",
+  "theme": "Ocean",
+  "base": "#023e6b",
+  "tip": "#5ad0ff",
+  "bounce": "Soft",
+  "alpha": 0.8,
+  "place": {"x": 0, "y": 0, "rot": 0, "sx": 1, "sy": 1, "mirror": false},
+  "glow": 0.52,
+  "vignette": 0.6,
+  "grain": 0.07,
+  "show_titles": true,
+  "aspect": "1:1",
+  "res": "1080p",
+  "fps": "30"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "Vertebra",
+  "mode": "3D",
+  "style": "Spine",
+  "theme": "Forest",
+  "base": "#0d5c38",
+  "tip": "#9ef0c0",
+  "bounce": "Medium",
+  "tilt": 42,
+  "alpha": 0.78,
+  "place": {"x": 0, "y": 0.02, "rot": 0, "sx": 1.05, "sy": 1.05, "mirror": false},
+  "glow": 0.48,
+  "vignette": 0.55,
+  "grain": 0.1,
+  "show_titles": true,
+  "aspect": "16:9",
+  "res": "1080p",
+  "fps": "30"
+}

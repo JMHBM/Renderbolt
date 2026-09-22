@@ -170,6 +170,53 @@ def draw_visualizer(
                 0.16, 0.16, w, h, tilt, place,
                 _rgba(col_t, 0.95 * a), _rgba(col_b, 0.65 * a), _rgba(col_t, 0.8 * a),
             )
+    elif style == "Levels":
+        n, rows = 28, 8
+        for i in range(n):
+            src = float(bands[int(i / max(1, n - 1) * (len(bands) - 1))])
+            q = max(0, min(rows, int(round(src * rows))))
+            for r in range(q):
+                tt = r / max(1, rows - 1)
+                col_t = _mix(base, tip, tt)
+                prism(
+                    draw, -5.0 + i * (10.0 / max(1, n - 1)), 0.12 + r * 0.42, -0.2, 0.22, 0.22, w, h, tilt, place,
+                    _rgba(col_t, 0.95 * a), _rgba(_mix(base, col_t, 0.4), 0.7 * a), _rgba(col_t, 0.85 * a),
+                )
+    elif style == "Particles":
+        n = 32
+        for i in range(n):
+            src = float(bands[int(i / max(1, n - 1) * (len(bands) - 1))])
+            col_t = _mix(base, tip, src)
+            prism(
+                draw, -5.0 + i * (10.0 / max(1, n - 1)), 0.2 + src * 3.2, -0.12, 0.18, 0.18, w, h, tilt, place,
+                _rgba(col_t, 0.95 * a), _rgba(_mix(base, col_t, 0.35), 0.7 * a), _rgba(col_t, 0.8 * a),
+            )
+    elif style == "Spine":
+        n = 18
+        for i in range(n):
+            src = max(0.08, float(bands[int(i / max(1, n - 1) * (len(bands) - 1))]))
+            s = 0.2 + src * 0.9
+            col_t = _mix(base, tip, src)
+            prism(
+                draw, -4.6 + i * (9.2 / max(1, n - 1)), 0.35, -s * 0.5, s, s, w, h, tilt, place,
+                _rgba(col_t, 0.96 * a), _rgba(_mix(base, col_t, 0.4), 0.72 * a), _rgba(col_t, 0.88 * a),
+            )
+    elif style == "Radial wave":
+        n = 48
+        inner = 1.4 + pulse * 0.1
+        ring_in, ring_out = [], []
+        for i in range(n + 1):
+            tt = (i % n) / n
+            ang = tt * math.tau - math.pi / 2
+            v = float(bands[int(tt * len(bands)) % len(bands)])
+            ring_in.append(project(math.cos(ang) * inner, 0.3, math.sin(ang) * inner, w, h, tilt, place))
+            ring_out.append(
+                project(math.cos(ang) * (inner + v * 1.8), 0.3, math.sin(ang) * (inner + v * 1.8), w, h, tilt, place)
+            )
+        for i in range(n):
+            col = _mix(base, tip, 0.3 + 0.7 * float(bands[int(i / n * len(bands)) % len(bands)]))
+            _tri(draw, [ring_in[i], ring_in[i + 1], ring_out[i + 1]], _rgba(col, 0.55 * a))
+            _tri(draw, [ring_in[i], ring_out[i + 1], ring_out[i]], _rgba(col, 0.72 * a))
     elif style == "Liquid waves":
         nx, nz = 22, 12
 
@@ -265,6 +312,64 @@ def _draw_2d(
                 col = _rgba(_mix(base, tip, tt), (0.75 + v * 0.25) * a)
                 pts = [P(x, y0), P(x + bw, y0), P(x + bw, y1), P(x, y1)]
                 draw.polygon([(int(p[0]), int(p[1])) for p in pts], fill=col)
+    elif style == "Levels":
+        n, rows = 32, 10
+        pad, avail = w * 0.08, w * 0.84
+        gap = max(2, avail * 0.012)
+        bw = max(3, (avail - gap * (n - 1)) / n)
+        cell_h = h * 0.028
+        cell_gap = h * 0.006
+        base_y = h * 0.93
+        for i in range(n):
+            v = float(bands[int(i / max(1, n - 1) * (len(bands) - 1))])
+            q = max(0, min(rows, int(round(v * rows))))
+            x = pad + i * (bw + gap)
+            for r in range(q):
+                y1 = base_y - r * (cell_h + cell_gap)
+                y0 = y1 - cell_h
+                col = _rgba(_mix(base, tip, r / max(1, rows - 1)), (0.7 + v * 0.3) * a)
+                pts = [P(x, y0), P(x + bw, y0), P(x + bw, y1), P(x, y1)]
+                draw.polygon([(int(p[0]), int(p[1])) for p in pts], fill=col)
+    elif style == "Particles":
+        n = 36
+        pad, avail = w * 0.08, w * 0.84
+        size = max(6, w * 0.016)
+        for i in range(n):
+            v = float(bands[int(i / max(1, n - 1) * (len(bands) - 1))])
+            cx = pad + (i + 0.5) * (avail / n)
+            cy = h * 0.92 - v * h * 0.62
+            col = _rgba(_mix(base, tip, v), (0.75 + v * 0.25) * a)
+            pts = [P(cx - size, cy - size), P(cx + size, cy - size), P(cx + size, cy + size), P(cx - size, cy + size)]
+            draw.polygon([(int(p[0]), int(p[1])) for p in pts], fill=col)
+    elif style == "Spine":
+        n = 20
+        pad, avail = w * 0.08, w * 0.84
+        mid = h * 0.55
+        for i in range(n):
+            v = max(0.08, float(bands[int(i / max(1, n - 1) * (len(bands) - 1))]))
+            half = v * min(w, h) * 0.055
+            cx = pad + (i + 0.5) * (avail / n)
+            col = _rgba(_mix(base, tip, v), (0.7 + v * 0.3) * a)
+            pts = [P(cx - half, mid - half), P(cx + half, mid - half), P(cx + half, mid + half), P(cx - half, mid + half)]
+            draw.polygon([(int(p[0]), int(p[1])) for p in pts], fill=col)
+    elif style == "Radial wave":
+        cx, cy = w * 0.5, h * 0.48
+        inner = min(w, h) * (0.14 + pulse * 0.02)
+        n = 72
+        pts_out = []
+        pts_in = []
+        for i in range(n + 1):
+            tt = (i % n) / n
+            ang = tt * math.tau - math.pi / 2
+            v = float(bands[int(tt * len(bands)) % len(bands)])
+            pts_in.append(P(cx + math.cos(ang) * inner, cy + math.sin(ang) * inner))
+            pts_out.append(P(cx + math.cos(ang) * (inner + v * min(w, h) * 0.22), cy + math.sin(ang) * (inner + v * min(w, h) * 0.22)))
+        for i in range(n):
+            col = _rgba(_mix(base, tip, 0.25 + 0.75 * float(bands[int(i / n * len(bands)) % len(bands)])), 0.7 * a)
+            draw.polygon(
+                [pts_in[i], pts_in[i + 1], pts_out[i + 1], pts_out[i]],
+                fill=col,
+            )
     elif style == "Circular":
         cx, cy = w * 0.5, h * 0.46
         inner = min(w, h) * (0.16 + pulse * 0.02)
@@ -334,7 +439,9 @@ def draw_lite(
     base = _hex(theme[0])
     tip = _hex(theme[1] if len(theme) > 1 else theme[0])
     a = max(0.35, min(1.0, vis_alpha))
-    bands = analysis.get("bands") or [0.0]
+    bands = analysis.get("bands")
+    if bands is None or len(bands) == 0:
+        bands = [0.0]
     td = analysis.get("time")
     pulse = float(analysis.get("pulse") or 0)
     place = place or {}
@@ -359,6 +466,60 @@ def draw_lite(
             x0, y0 = P(x, base_y - bh)
             x1, y1 = P(x + bw, base_y)
             draw.rectangle([x0, y0, x1, y1], fill=col)
+    elif style == "Levels":
+        n, rows = 20, 8
+        pad, avail = w * 0.08, w * 0.84
+        gap = max(1, avail * 0.012)
+        bw = max(3, (avail - gap * (n - 1)) / n)
+        ch, cg = h * 0.03, h * 0.006
+        base_y = h * 0.92
+        for i in range(n):
+            v = float(bands[int(i / max(1, n - 1) * (len(bands) - 1))])
+            q = max(0, min(rows, int(round(v * rows))))
+            x = pad + i * (bw + gap)
+            for r in range(q):
+                y1 = base_y - r * (ch + cg)
+                col = _rgba(_mix(base, tip, r / max(1, rows - 1)), a)
+                x0, y0 = P(x, y1 - ch)
+                x1, y1p = P(x + bw, y1)
+                draw.rectangle([x0, y0, x1, y1p], fill=col)
+    elif style == "Particles":
+        n = 24
+        size = max(4, w * 0.018)
+        for i in range(n):
+            v = float(bands[int(i / max(1, n - 1) * (len(bands) - 1))])
+            cx = w * 0.1 + (i + 0.5) * (w * 0.8 / n)
+            cy = h * 0.88 - v * h * 0.55
+            col = _rgba(_mix(base, tip, v), a)
+            x0, y0 = P(cx - size, cy - size)
+            x1, y1 = P(cx + size, cy + size)
+            draw.rectangle([x0, y0, x1, y1], fill=col)
+    elif style == "Spine":
+        n = 16
+        mid = h * 0.55
+        for i in range(n):
+            v = max(0.08, float(bands[int(i / max(1, n - 1) * (len(bands) - 1))]))
+            half = v * min(w, h) * 0.05
+            cx = w * 0.1 + (i + 0.5) * (w * 0.8 / n)
+            col = _rgba(_mix(base, tip, v), a)
+            x0, y0 = P(cx - half, mid - half)
+            x1, y1 = P(cx + half, mid + half)
+            draw.rectangle([x0, y0, x1, y1], fill=col)
+    elif style == "Radial wave":
+        cx, cy = w * 0.5, h * 0.5
+        inner = min(w, h) * (0.14 + pulse * 0.02)
+        n = 48
+        pts_in, pts_out = [], []
+        for i in range(n + 1):
+            tt = (i % n) / n
+            ang = tt * math.tau - math.pi / 2
+            v = float(bands[int(tt * len(bands)) % len(bands)])
+            pts_in.append(P(cx + math.cos(ang) * inner, cy + math.sin(ang) * inner))
+            r = inner + v * min(w, h) * 0.2
+            pts_out.append(P(cx + math.cos(ang) * r, cy + math.sin(ang) * r))
+        for i in range(n):
+            col = _rgba(_mix(base, tip, 0.25 + 0.75 * float(bands[int(i / n * len(bands)) % len(bands)])), 0.7 * a)
+            draw.polygon([pts_in[i], pts_in[i + 1], pts_out[i + 1], pts_out[i]], fill=col)
     elif style == "Circular":
         cx, cy = w * 0.5, h * 0.48
         inner = min(w, h) * (0.16 + pulse * 0.02)
