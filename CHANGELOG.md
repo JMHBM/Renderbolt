@@ -1,6 +1,8 @@
 # Changelog
 
-## 1.0.9 — unreleased
+## 1.0.9 — 2026-09-22
+
+Linux **AppImage** only. Windows installer and Debian `.deb` remain 1.0.8.
 
 Cavasik-inspired visualizers, original Renderbolt code (no GPL source vendored).
 
@@ -9,6 +11,7 @@ Cavasik-inspired visualizers, original Renderbolt code (no GPL source vendored).
 - **Spine** — growing squares along the midline
 - **Radial wave** — filled circular spectrum
 - Starter looks: Ladder, Scatter, Vertebra, Orbit
+- Type-2 AppImage with static FUSE3 (`Renderbolt-1.0.9-x86_64.AppImage`)
 
 ## 1.0.8 — 2026-08-28
 
