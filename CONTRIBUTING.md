@@ -13,5 +13,5 @@ python3 scripts/build-deb.py
 ```
 
 ```powershell
-python scripts\\build-windows.py
+python scripts\build-windows.py
 ```
