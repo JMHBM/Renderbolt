@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.11 — 2026-09-23
+
+Linux **AppImage** studio fixes. 1.0.10 still letterboxed a flat sketch and blended dark ink away.
+
+- Preview is the real frame, scaled to cover the stage (no inset, no 560px box)
+- Playback redraws that frame, and waveforms use peaks so they actually move
+- Black and dark grey stay the color you picked, with a light rim so they show on a dark cover
+- Generate never opens GLX on the UI thread. If EGL is missing it draws on the CPU instead of sitting on Starting export
+
 ## 1.0.10 — 2026-09-22
 
 Linux **AppImage** studio fixes (Windows / Debian remain 1.0.8).

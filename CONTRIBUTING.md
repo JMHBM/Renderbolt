@@ -2,7 +2,7 @@
 
 Renderbolt is a small studio. Keep changes focused.
 
-1. The public GitHub Release is **1.0.10** (Linux AppImage). Windows installer and Debian `.deb` remain **1.0.8**. Fedora / RPM last. macOS later.
+1. The public GitHub Release is **1.0.11** (Linux AppImage). Windows installer and Debian `.deb` remain **1.0.8**. Fedora / RPM last. macOS later.
 2. Windows studio lives in `desktop/win/` (WebView2). Linux studio lives in `desktop/renderbolt` (Tk).
 3. Packaging must keep parent directories as real archive members in the `.deb`.
 4. Credit **JMHBM**, **Grok (xAI)**, and **Jan-4B-Base-Instruct (Menlo Labs Research)**. Copyright is equally shared. Keep the CC BY 4.0 license.
@@ -13,5 +13,5 @@ python3 scripts/build-deb.py
 ```
 
 ```powershell
-python scripts\build-windows.py
+python scripts\\build-windows.py
 ```
