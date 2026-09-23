@@ -605,3 +605,4 @@ def draw_lite(
         if len(pts) > 1:
             _line(draw, pts, tip, a, 4)
     _stamp(img, overlay, base, tip)
+
