@@ -51,27 +51,27 @@ X-AppImage-Version=1.0.11
 
 APPRUN = """#!/bin/sh
 set -e
-HERE=\"$(dirname \"$(readlink -f \"$0\")\")\"
-export PATH=\"$HERE/usr/bin:$HERE/python/bin:$PATH\"
-export LD_LIBRARY_PATH=\"$HERE/python/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"
-export TCL_LIBRARY=\"$HERE/python/lib/tcl9.0\"
-export TK_LIBRARY=\"$HERE/python/lib/tk9.0\"
-export PYTHONHOME=\"$HERE/python\"
+HERE="$(dirname "$(readlink -f "$0")")"
+export PATH="$HERE/usr/bin:$HERE/python/bin:$PATH"
+export LD_LIBRARY_PATH="$HERE/python/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export TCL_LIBRARY="$HERE/python/lib/tcl9.0"
+export TK_LIBRARY="$HERE/python/lib/tk9.0"
+export PYTHONHOME="$HERE/python"
 export PYTHONNOUSERSITE=1
-export RENDERBOLT_SHARE=\"$HERE/opt/renderbolt/share\"
-export RENDERBOLT_LOOKS=\"$HERE/opt/renderbolt/share/looks\"
+export RENDERBOLT_SHARE="$HERE/opt/renderbolt/share"
+export RENDERBOLT_LOOKS="$HERE/opt/renderbolt/share/looks"
 # Prefer the bundled encoder; VA-API / NVENC still use host drivers.
-export SSL_CERT_FILE=\"${SSL_CERT_FILE:-$HERE/python/lib/python3.12/site-packages/certifi/cacert.pem}\"
-exec \"$HERE/python/bin/python3\" \"$HERE/opt/renderbolt/renderbolt\" \"$@\"
+export SSL_CERT_FILE="${SSL_CERT_FILE:-$HERE/python/lib/python3.12/site-packages/certifi/cacert.pem}"
+exec "$HERE/python/bin/python3" "$HERE/opt/renderbolt/renderbolt" "$@"
 """
 
 WRAPPER = """#!/bin/sh
-exec \"$(dirname \"$(readlink -f \"$0\")\")/../AppRun\" \"$@\"
+exec "$(dirname "$(readlink -f "$0")")/../AppRun" "$@"
 """
 
 
 def run(cmd: list[str], **kw) -> None:
-    print("+" , " ".join(cmd))
+    print("+", " ".join(cmd))
     subprocess.check_call(cmd, **kw)
 
 
