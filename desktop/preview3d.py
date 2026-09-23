@@ -12,25 +12,11 @@ def _luma(rgb: tuple[int, int, int]) -> float:
     return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
 
 
-def _lift(rgb: tuple[int, int, int], floor: float = 56.0) -> tuple[int, int, int]:
-    """Keep dark vis colors readable on a dim cover."""
-    y = _luma(rgb)
-    if y >= floor:
-        return rgb
-    if y < 1:
-        f = int(floor)
-        return (f, f, min(255, f + 10))
-    s = floor / y
-    return (
-        min(255, int(rgb[0] * s)),
-        min(255, int(rgb[1] * s)),
-        min(255, int(rgb[2] * s)),
-    )
-
-
 def _hex(h: str) -> tuple[int, int, int]:
     h = h.lstrip("#")
-    return _lift((int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)))
+    if len(h) < 6:
+        return (255, 255, 255)
+    return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
 
 
 def _rgba(rgb: tuple[int, int, int], a: float) -> tuple[int, int, int, int]:
@@ -39,13 +25,52 @@ def _rgba(rgb: tuple[int, int, int], a: float) -> tuple[int, int, int, int]:
 
 def _mix(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> tuple[int, int, int]:
     t = max(0.0, min(1.0, t))
-    return _lift(
-        (
-            int(a[0] + (b[0] - a[0]) * t),
-            int(a[1] + (b[1] - a[1]) * t),
-            int(a[2] + (b[2] - a[2]) * t),
-        )
+    return (
+        int(a[0] + (b[0] - a[0]) * t),
+        int(a[1] + (b[1] - a[1]) * t),
+        int(a[2] + (b[2] - a[2]) * t),
     )
+
+
+def _ink_luma(base: tuple[int, int, int], tip: tuple[int, int, int]) -> float:
+    return (_luma(base) + _luma(tip)) * 0.5
+
+
+def _signed_peaks(td: Any, n: int) -> list[float]:
+    """One signed peak per bucket. A windowed mean cancels and looks frozen."""
+    n = max(2, int(n))
+    try:
+        size = int(getattr(td, "size", 0) or 0)
+    except Exception:
+        size = 0
+    if size <= 0:
+        return [0.0] * n
+    out: list[float] = []
+    for i in range(n):
+        a = int(i * size / n)
+        b = max(a + 1, min(size, int((i + 1) * size / n)))
+        chunk = td[a:b]
+        if getattr(chunk, "size", 0):
+            j = int(abs(chunk).argmax())
+            out.append(float(chunk[j]))
+        else:
+            out.append(0.0)
+    return out
+
+
+def _stamp(img: Image.Image, overlay: Image.Image, base: tuple[int, int, int], tip: tuple[int, int, int]) -> None:
+    """Keep the picked color, but outline dark ink so it survives a dark cover."""
+    y = _ink_luma(base, tip)
+    layer = overlay
+    if y < 148:
+        r, g, b, a = layer.split()
+        a = a.point(lambda p: 255 if p > 12 else 0)
+        layer = Image.merge("RGBA", (r, g, b, a))
+        halo = a.filter(ImageFilter.MaxFilter(7))
+        plate = Image.new("RGBA", layer.size, (236, 238, 244, 0))
+        plate.putalpha(halo.point(lambda p: 230 if p > 12 else 0))
+        img.alpha_composite(plate)
+    img.alpha_composite(layer)
 
 
 def _line(
@@ -57,8 +82,6 @@ def _line(
 ) -> None:
     if len(pts) < 2:
         return
-    if _luma(col) < 110:
-        draw.line(pts, fill=_rgba((228, 232, 238), min(1.0, a * 0.8)), width=max(width + 3, 5))
     draw.line(pts, fill=_rgba(col, a), width=width)
 
 
@@ -110,7 +133,7 @@ def project(
     y2 = y * ct - z1 * st
     z2 = y * st + z1 * ct
     f = 7.2 / (7.2 + z2)
-    scale = min(w, h) * 0.092
+    scale = min(w, h) * 0.118
     px = w * 0.5 + x1 * scale * f
     py = h * 0.62 - y2 * scale * f
     px += float(place.get("x") or 0) * w * 0.45
@@ -281,11 +304,7 @@ def draw_visualizer(
                 _tri(draw, [a0, a2, a3], _rgba(_mix(base, col, 0.6), (0.3 + shade * 0.45) * a))
     else:
         samples = 96
-        step = max(1, td.size // samples)
-        vals = []
-        for i in range(samples):
-            chunk = td[i * step : (i + 1) * step]
-            vals.append(float(chunk.mean()) if chunk.size else 0.0)
+        vals = _signed_peaks(td, samples)
         for i in range(samples - 2, -1, -1):
             t0 = i / (samples - 1)
             t1 = (i + 1) / (samples - 1)
@@ -302,10 +321,10 @@ def draw_visualizer(
             _tri(draw, [pa, pb, pc], _rgba(_mix(base, col, 0.6), 0.7 * a))
             _tri(draw, [pa, pc, pd], _rgba(col, 0.88 * a))
 
-    if glow > 0.02:
+    if glow > 0.02 and _ink_luma(base, tip) >= 148:
         bloom = overlay.filter(ImageFilter.GaussianBlur(radius=max(2, int(4 + glow * 10))))
         img.alpha_composite(bloom)
-    img.alpha_composite(overlay)
+    _stamp(img, overlay, base, tip)
 
 
 def _draw_2d(
@@ -445,13 +464,12 @@ def _draw_2d(
             col = tip if use_tip else base
             draw.polygon([(int(p[0]), int(p[1])) for p in poly], fill=_rgba(col, aa * a))
     else:
-        mid, amp = h * 0.82, h * (0.12 + float(analysis.get("bass") or 0) * 0.08)
-        step = max(1, td.size // 480)
-        count = max(2, td.size // step)
+        mid, amp = h * 0.58, h * 0.36
+        peaks = _signed_peaks(td, 160)
+        count = len(peaks)
         top, bot = [], []
-        for i in range(count):
-            v = float(td[i * step : (i + 1) * step].mean())
-            x = w * 0.07 + (i / (count - 1)) * w * 0.86
+        for i, v in enumerate(peaks):
+            x = w * 0.04 + (i / (count - 1)) * w * 0.92
             top.append(P(x, mid - v * amp))
             bot.append(P(x, mid + v * amp * 0.92))
         poly = top + list(reversed(bot))
@@ -578,17 +596,12 @@ def draw_lite(
         poly.append(P(w, h))
         draw.polygon(poly, fill=_rgba(tip, 0.35 * a))
     else:
-        mid, amp = h * 0.6, h * 0.16
-        n = 64
+        mid, amp = h * 0.55, h * 0.38
+        n = 96
         pts = []
-        if td is not None and getattr(td, "size", 0):
-            step = max(1, td.size // n)
-            for i in range(n):
-                chunk = td[i * step : (i + 1) * step]
-                v = float(chunk.mean()) if chunk.size else 0.0
-                x = w * 0.08 + (i / (n - 1)) * w * 0.84
-                pts.append(P(x, mid - v * amp))
+        for i, v in enumerate(_signed_peaks(td, n) if td is not None and getattr(td, "size", 0) else []):
+            x = w * 0.03 + (i / (n - 1)) * w * 0.94
+            pts.append(P(x, mid - v * amp))
         if len(pts) > 1:
             _line(draw, pts, tip, a, 4)
-    img.alpha_composite(overlay)
-
+    _stamp(img, overlay, base, tip)
